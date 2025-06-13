@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import tempfile
 from finilized_respondent import process_data
+import openpyxl
 
 # Wide layout for full width
 st.set_page_config(page_title="Survey Respondent Report Generator", layout="wide", page_icon="📊")

@@ -58,7 +58,7 @@ st.markdown('<div class="title-box">Survey Respondent Report Generator</div>', u
 # Load parquet
 @st.cache_data
 def load_data():
-    df = pd.read_parquet('clientandsupplier.parquet')
+    df = pd.read_parquet('newclientandsupplier.parquet')
     return df
 
 df = load_data()

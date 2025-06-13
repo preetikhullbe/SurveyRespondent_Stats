@@ -3,3 +3,5 @@ pandas
 numpy
 xlsxwriter
 pyarrow
+openpyxl
+pandas[excel]

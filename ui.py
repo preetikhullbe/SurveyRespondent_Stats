@@ -5,7 +5,7 @@ from finilized_respondent import process_data
 import openpyxl
 
 # Wide layout for full width
-st.set_page_config(page_title="Survey Respondent Report Generator", layout="wide", page_icon="📊")
+st.set_page_config(page_title="Survey Respondent Report", layout="wide")
 
 # Custom CSS Styling
 st.markdown("""
@@ -82,16 +82,16 @@ st.write("")
 st.write("")
 generate_col = st.columns([3, 3, 3])
 with generate_col[1]:
-    if st.button("🚀 Generate Report"):
+    if st.button("Generate Report"):
         with st.spinner("Processing... Please wait ⏳"):
             with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
                 client_to_pass = None if selected_client == "All" else selected_client
                 process_data(tmp.name, start_date, end_date, client_to_pass)
-                st.success("✅ Report Generated Successfully!")
+                st.success("Report Generated Successfully!")
 
                 excel_preview = pd.read_excel(tmp.name)
 
-                st.markdown("<h3>📊 Report Preview</h3>", unsafe_allow_html=True)
+                st.markdown("<h3>Report Preview</h3>", unsafe_allow_html=True)
 
                 # Leave side margins for cleaner look
                 preview_container = st.container()
@@ -104,4 +104,4 @@ with generate_col[1]:
 
                 # Download button below preview
                 with open(tmp.name, "rb") as f:
-                    st.download_button("📥 Download Excel Report", f, file_name="final_report.xlsx")
+                    st.download_button("Download Excel Report", f, file_name="final_report.xlsx")

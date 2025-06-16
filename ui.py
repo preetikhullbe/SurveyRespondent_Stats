@@ -4,59 +4,80 @@ import tempfile
 from finilized_respondent import process_data
 import openpyxl
 
-# Wide layout for full width
-st.set_page_config(page_title="Survey Respondent Report", layout="wide")
+# Full-width layout, no scroll effect
+st.set_page_config(page_title="Respondent Report Generator", layout="wide")
 
-# Custom CSS Styling
+# Custom Styling - FULL REDESIGN
 st.markdown("""
     <style>
+    /* Global App Styling */
     .stApp {
-        background-color: #2a2a2a;
-        color: #E0E0E0;
+        background-color: #f7f9fc;
+        color: #333333;
         font-family: 'Segoe UI', sans-serif;
         padding-top: 0rem !important;
+        margin-top: -50px !important;  /* Remove extra space above title */
     }
     header {visibility: hidden;}
+
+    /* Title Styling */
     .title-box {
-        background-color: #2196F3;
-        padding: 10px 0px;
-        border-radius: 12px;
+        background: linear-gradient(135deg, #00b4db, #0083b0);
+        padding: 15px 0px;
         color: white;
         text-align: center;
-        font-size: 26px;
-        font-weight: 500;
-        margin-bottom: 15px;
-        box-shadow: 0 3px 8px rgba(0,0,0,0.4);
-    }
-    label, .stTextInput > label, .stDateInput > label, .stSelectbox > label {
-        color: #E0E0E0 !important;
+        font-size: 38px;
         font-weight: 600;
+        margin-bottom: 40px;  /* Increased space after title */
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        border-bottom-left-radius: 25px;
+        border-bottom-right-radius: 25px;
     }
+
+    /* Form Styling */
+    label, .stTextInput > label, .stDateInput > label, .stSelectbox > label {
+        color: #333333 !important;
+        font-weight: 600;
+        font-size: 16px;
+    }
+
+    /* Generate Button Styling */
     .stButton > button {
-        background-color: #2196F3;
+        background-color: #FF4C4C;
         color: white;
         border-radius: 10px;
         font-size: 18px;
-        padding: 0.6em 2.5em;
-        margin-top: 10px;
+        padding: 0.7em 0em;
+        width: 250px;
+        font-weight: 600;
+        white-space: nowrap;
     }
-    .stDataFrame {
-        background-color: #1F1F1F !important;
+
+    /* Download Button Styling */
+    div[data-testid="stDownloadButton"] > button {
+        background-color: #4CAF50 !important;  /* Green color */
+        color: white !important;
+        border-radius: 10px;
+        font-size: 18px !important;
+        padding: 0.7em 2em !important;
+        font-weight: 600 !important;
     }
+
+    /* Report container */
     .report-container {
-        background-color: #1f1f1f;
-        padding: 20px;
-        border-radius: 12px;
-        margin-top: 20px;
-        box-shadow: 0 0 10px rgba(0,0,0,0.4);
+        background-color: #ffffff;
+        padding: 25px;
+        border-radius: 18px;
+        margin-top: 25px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.15);
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Page Title - No top margin
+# Title
 st.markdown('<div class="title-box">Survey Respondent Report Generator</div>', unsafe_allow_html=True)
 
-# Load parquet
+# Load parquet file
 @st.cache_data
 def load_data():
     df = pd.read_parquet('newclientandsupplier.parquet')
@@ -64,7 +85,7 @@ def load_data():
 
 df = load_data()
 
-# Layout the form
+# Form Layout
 col1, col2, col3 = st.columns([3, 3, 3])
 
 with col1:
@@ -77,13 +98,13 @@ with col2:
 with col3:
     end_date = st.date_input("End Date", None)
 
-# Generate Button - exactly below Start Date (centered under col2)
+# Button Centered Exactly
 st.write("")
 st.write("")
 generate_col = st.columns([3, 3, 3])
 with generate_col[1]:
     if st.button("Generate Report"):
-        with st.spinner("Processing... Please wait ⏳"):
+        with st.spinner("Processing..... Please wait"):
             with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
                 client_to_pass = None if selected_client == "All" else selected_client
                 process_data(tmp.name, start_date, end_date, client_to_pass)
@@ -93,15 +114,13 @@ with generate_col[1]:
 
                 st.markdown("<h3>Report Preview</h3>", unsafe_allow_html=True)
 
-                # Leave side margins for cleaner look
                 preview_container = st.container()
                 with preview_container:
                     st.dataframe(
                         excel_preview,
                         use_container_width=True,
-                        height=430  # adjusted height to fit download button
+                        height=300,
                     )
 
-                # Download button below preview
                 with open(tmp.name, "rb") as f:
                     st.download_button("Download Excel Report", f, file_name="final_report.xlsx")

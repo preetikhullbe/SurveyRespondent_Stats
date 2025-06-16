@@ -32,7 +32,7 @@ def process_data(output_file, start_date=None, end_date=None, client_filter=None
     client_summary['Client_Conversion'] = (client_summary['Client_Completes'] / client_summary['Client_Total_Starts'] * 100).round(2)
 
     filtered_clients = client_summary[
-        (client_summary['Client_Total_Starts'] > 2000) &
+        (client_summary['Client_Total_Starts'] > 1000) &
         (client_summary['Client_Client_Starts'] < 0.4 * client_summary['Client_Total_Starts'])
     ]
 
@@ -47,7 +47,7 @@ def process_data(output_file, start_date=None, end_date=None, client_filter=None
 
     supplier_filtered = supplier_summary[
         (supplier_summary['Supplier_Total_Starts'] > 500) & 
-        (supplier_summary['Supplier_Conversion'] < 3)
+        (supplier_summary['Supplier_Conversion'] < 4)
     ].copy()
 
     # -------------------- Dropout Aggregation --------------------
@@ -64,7 +64,7 @@ def process_data(output_file, start_date=None, end_date=None, client_filter=None
 
     dropout_counts = dropout_counts.sort_values(['client', 'supplier', 'Drop_Count'], ascending=[True, True, False])
     top_dropouts = dropout_counts.groupby(['client', 'supplier']).head(4)
-    top_dropouts = top_dropouts[~top_dropouts['RespondentStatusName'].isin(['Start', 'Complete'])]
+    top_dropouts = top_dropouts[~top_dropouts['RespondentStatusName'].isin(['Client Terminate', 'Complete','Duplicate User','Duplicate IP'])]
 
     # -------------------- Qualification Aggregation --------------------
     demo_df = filtered_df[filtered_df['RespondentStatusName'] == 'DemoTerminate']

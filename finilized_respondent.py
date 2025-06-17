@@ -1,26 +1,28 @@
 import pandas as pd
 import numpy as np
 
-# Load data only once here
+# Load data once
 df = pd.read_parquet('newclientandsupplier.parquet')
 
-def process_data(output_file, start_date=None, end_date=None, client_filter=None):
+def process_data1(output_file, start_date=None, end_date=None, client_filter=None):
     filtered_df = df.copy()
+    ignored_status_ids = [1, 3, 7, 15, 26]
 
-    # Apply Date filters if provided
+    # Apply date filters
     if start_date:
         filtered_df = filtered_df[filtered_df['Survey_EndDate'] >= pd.to_datetime(start_date)]
     if end_date:
         filtered_df = filtered_df[filtered_df['Survey_EndDate'] <= pd.to_datetime(end_date)]
 
-    # ✅ Corrected Client Filter
+    # Client filter
     if client_filter:
         filtered_df = filtered_df[filtered_df['client'].isin(client_filter)]
 
-    # Define mappings
+    # Flags
     client_start_statuses = [1, 2, 3, 4, 5, 8, 9, 22, 23, 25, 26]
     filtered_df['is_client_start'] = filtered_df['RespondentStatus'].isin(client_start_statuses)
     filtered_df['is_complete'] = filtered_df['RespondentStatus'] == 1
+    filtered_df['is_other_status'] = ~filtered_df['RespondentStatus'].isin(ignored_status_ids)
 
     # -------------------- Client Aggregation --------------------
     client_summary = filtered_df.groupby('client').agg(
@@ -29,11 +31,17 @@ def process_data(output_file, start_date=None, end_date=None, client_filter=None
         Client_Completes=('is_complete', 'sum')
     ).reset_index()
 
+    client_other_status = filtered_df.groupby('client')['is_other_status'].mean().mul(100).reset_index(name='other_status_rate')
+    client_summary = client_summary.merge(client_other_status, on='client', how='left')
+
     client_summary['Client_Conversion'] = (client_summary['Client_Completes'] / client_summary['Client_Total_Starts'] * 100).round(2)
 
     filtered_clients = client_summary[
         (client_summary['Client_Total_Starts'] > 1000) &
-        (client_summary['Client_Client_Starts'] < 0.4 * client_summary['Client_Total_Starts'])
+        (
+            (client_summary['Client_Client_Starts'] < 0.5 * client_summary['Client_Total_Starts']) |
+            (client_summary['other_status_rate'] >= 20)
+        )
     ]
 
     # -------------------- Supplier Aggregation --------------------
@@ -44,13 +52,18 @@ def process_data(output_file, start_date=None, end_date=None, client_filter=None
     ).reset_index()
 
     supplier_summary['Supplier_Conversion'] = (supplier_summary['Supplier_Completes'] / supplier_summary['Supplier_Total_Starts'] * 100).round(2)
+    supplier_other_status = filtered_df.groupby(['client', 'supplier'])['is_other_status'].mean().mul(100).reset_index(name='supplier_other_status_rate')
+    supplier_summary = supplier_summary.merge(supplier_other_status, on=['client', 'supplier'], how='left')
 
     supplier_filtered = supplier_summary[
-        (supplier_summary['Supplier_Total_Starts'] > 500) & 
-        (supplier_summary['Supplier_Conversion'] < 4)
+        (supplier_summary['Supplier_Total_Starts'] > 300) & 
+        (
+            (supplier_summary['Supplier_Conversion'] < 4) |
+            (supplier_summary['supplier_other_status_rate'] >= 20)
+        )
     ].copy()
 
-    # -------------------- Dropout Aggregation --------------------
+    # -------------------- Dropout Aggregation (Top 4) --------------------
     dropouts = filtered_df[filtered_df['RespondentStatusName'].notnull()]
     dropout_counts = dropouts.groupby(['client', 'supplier', 'RespondentStatusName']).size().reset_index(name='Drop_Count')
 
@@ -62,11 +75,13 @@ def process_data(output_file, start_date=None, end_date=None, client_filter=None
 
     dropout_counts['Drop_Percent'] = (dropout_counts['Drop_Count'] / dropout_counts['Supplier_Total_Starts'] * 100).round(2)
 
+    # ✅ FILTER before taking top 4
+    dropout_counts = dropout_counts[~dropout_counts['RespondentStatusName'].isin(['Client Terminate','Client No Survey','Complete','Duplicate User','Duplicate IP'])]
     dropout_counts = dropout_counts.sort_values(['client', 'supplier', 'Drop_Count'], ascending=[True, True, False])
-    top_dropouts = dropout_counts.groupby(['client', 'supplier']).head(4)
-    top_dropouts = top_dropouts[~top_dropouts['RespondentStatusName'].isin(['Client Terminate', 'Complete','Duplicate User','Duplicate IP'])]
+    top_dropouts = dropout_counts.groupby(['client', 'supplier']).head(3)
 
-    # -------------------- Qualification Aggregation --------------------
+
+    # -------------------- Qualification Aggregation (Top 3) --------------------
     demo_df = filtered_df[filtered_df['RespondentStatusName'] == 'DemoTerminate']
     qualification_counts = demo_df.groupby(['client', 'supplier', 'QualificationName']).size().reset_index(name='Qualification_Count')
 
@@ -102,10 +117,11 @@ def process_data(output_file, start_date=None, end_date=None, client_filter=None
         'Drop_Percent': 'Percentage'
     }, inplace=True)
 
-    final = final[[ 'Client', 'Starts(client)', 'Client Starts', 'Conversion(client)',
-        'Supplier', 'Starts(supplier)', 'Client Starts(supplier)', 'Conversion(supplier)',
-        'Respondent Status', 'Count', 'Percentage']]
-
+    final = final[['Client', 'Starts(client)', 'Client Starts', 'Conversion(client)',
+                   'Supplier', 'Starts(supplier)', 'Client Starts(supplier)', 'Conversion(supplier)',
+                   'Respondent Status', 'Count', 'Percentage']]
+    # Sort by Client Starts and Supplier Starts
+    final = final.sort_values(by=['Starts(client)', 'Starts(supplier)'], ascending=[False, False])
     # -------------------- Export to Excel --------------------
     with pd.ExcelWriter(output_file, engine='xlsxwriter') as writer:
         final.to_excel(writer, index=False, sheet_name='Report')
@@ -123,10 +139,10 @@ def process_data(output_file, start_date=None, end_date=None, client_filter=None
         worksheet.set_column('A:O', 18)
 
         start_row = 1
-        for client, client_df in final.groupby('Client'):
+        for client, client_df in final.groupby('Client',sort=False):
             client_rows = 0
             supplier_start_row = start_row
-            for supplier, supplier_df in client_df.groupby('Supplier'):
+            for supplier, supplier_df in client_df.groupby('Supplier',sort=False):
                 other_rows = supplier_df[supplier_df['Respondent Status'] != 'DemoTerminate'].shape[0]
                 demo_row = supplier_df[supplier_df['Respondent Status'] == 'DemoTerminate']
                 if not demo_row.empty:

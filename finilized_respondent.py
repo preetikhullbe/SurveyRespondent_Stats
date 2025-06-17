@@ -13,9 +13,9 @@ def process_data(output_file, start_date=None, end_date=None, client_filter=None
     if end_date:
         filtered_df = filtered_df[filtered_df['Survey_EndDate'] <= pd.to_datetime(end_date)]
 
-    # Apply Client filter if provided
+    # ✅ Corrected Client Filter
     if client_filter:
-        filtered_df = filtered_df[filtered_df['client'].str.contains(client_filter, case=False, na=False)]
+        filtered_df = filtered_df[filtered_df['client'].isin(client_filter)]
 
     # Define mappings
     client_start_statuses = [1, 2, 3, 4, 5, 8, 9, 22, 23, 25, 26]
@@ -106,7 +106,7 @@ def process_data(output_file, start_date=None, end_date=None, client_filter=None
         'Supplier', 'Starts(supplier)', 'Client Starts(supplier)', 'Conversion(supplier)',
         'Respondent Status', 'Count', 'Percentage']]
 
-    # -------------------- Export to Excel (with logic fix applied) --------------------
+    # -------------------- Export to Excel --------------------
     with pd.ExcelWriter(output_file, engine='xlsxwriter') as writer:
         final.to_excel(writer, index=False, sheet_name='Report')
         workbook = writer.book
@@ -177,5 +177,3 @@ def process_data(output_file, start_date=None, end_date=None, client_filter=None
             start_row += client_rows
 
     print("✅ Fully Correct Report Generated!")
-
-

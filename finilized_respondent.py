@@ -4,7 +4,7 @@ import numpy as np
 # Load data once
 df = pd.read_parquet('newclientandsupplier.parquet')
 
-def process_data1(output_file, start_date=None, end_date=None, client_filter=None):
+def process_data(output_file, start_date=None, end_date=None, client_filter=None):
     filtered_df = df.copy()
     ignored_status_ids = [1, 3, 7, 15, 26]
 

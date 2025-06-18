@@ -89,11 +89,21 @@ st.markdown('<div class="title">Survey Respondent Report Generator</div>', unsaf
 with st.container():
     st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
-    @st.cache_data
-    def load_data():
-        return pd.read_parquet('newclientandsupplier.parquet')
+@st.cache_data(ttl=86400)
+def load_cached_data():
+    import os
+    import pandas as pd
 
-    df = load_data()
+    chunk_folder = "data_chunks"
+    chunk_files = sorted(
+        [f for f in os.listdir(chunk_folder) if f.endswith(".parquet")],
+        key=lambda x: int(x.split("_")[1].split(".")[0])
+    )
+
+    all_chunks = [pd.read_parquet(os.path.join(chunk_folder, f)) for f in chunk_files]
+    df = pd.concat(all_chunks, ignore_index=True)
+    return df
+    df=load_cached_data()
     clients = sorted(df['client'].unique())
 
     left_col, right_col = st.columns([1, 2], gap="small")

@@ -1,0 +1,6 @@
+# .gitignore
+# Ignore original large file
+clientandsupplier1.parquet
+
+# DO NOT ignore split files
+!clientandsupplier1_part*.parquet

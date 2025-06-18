@@ -29,7 +29,7 @@ def save_live_data_to_parquet_chunks():
     LEFT JOIN RespondentStatus rs WITH (NOLOCK) ON S.RespondentStatus = rs.RespondentStatusId
     LEFT JOIN Qualifications q WITH (NOLOCK) ON q.QualificationId = S.TermQualificationId
     WHERE 
-        S.Survey_EndDate >= CAST(DATEADD(DAY, -10, GETDATE()) AS DATE)
+        S.Survey_EndDate >= CAST(DATEADD(DAY, -1, GETDATE()) AS DATE)
         AND C.clientTypeId <> 1 
         AND C.ISActive = 1
     """

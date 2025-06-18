@@ -150,7 +150,7 @@ with st.container():
                     my_bar.progress(percent_complete, text=f"{progress_text} {percent_complete}%")
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
-                   process_data(tmp.name, start_date, end_date, client_to_pass)
+                   process_data(df,tmp.name, start_date, end_date, client_to_pass)
                    tmp_file_path = tmp.name
 
                    df_preview = pd.read_excel(tmp_file_path)

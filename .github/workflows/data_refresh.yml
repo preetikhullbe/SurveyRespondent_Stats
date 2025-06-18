@@ -1,0 +1,38 @@
+name: Daily Data Refresh
+
+on:
+  schedule:
+    - cron: '0 8 * * *'  # Runs every day at 8 PM UTC
+  workflow_dispatch:      # Allows manual run
+
+jobs:
+  refresh-data:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: pip install pandas pyodbc fastparquet
+
+    - name: Load data and save parquet
+      env:
+        SERVER: ${{ secrets.DB_SERVER }}
+        DATABASE: ${{ secrets.DB_NAME }}
+        USERNAME: ${{ secrets.DB_USER }}
+        PASSWORD: ${{ secrets.DB_PASS }}
+      run: python data_loader.py
+
+    - name: Commit and push updated parquet
+      run: |
+        git config user.name "github-actions"
+        git config user.email "actions@github.com"
+        git add clientandsupplier1.parquet
+        git commit -m "Auto update data"
+        git push

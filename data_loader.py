@@ -3,10 +3,10 @@ import pandas as pd
 import pyodbc
 
 def save_live_data_to_parquet_chunks():
-    server = ${{ secrets.DB_SERVER }}
-    database = ${{ secrets.DB_NAME }}
-    username = ${{ secrets.DB_USER }}
-    password = ${{ secrets.DB_PASS }}
+    server = os.environ["DB_SERVER"]
+    database = os.environ["DB_NAME"]
+    username = os.environ["DB_USER"]
+    password = os.environ["DB_PASS"]
 
     conn_str = (
         f"DRIVER={{ODBC Driver 17 for SQL Server}};"

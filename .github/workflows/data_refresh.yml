@@ -2,7 +2,7 @@ name: Daily Data Refresh
 
 on:
   schedule:
-    - cron: '0 8 * * *'  # Runs every day at 8 PM UTC
+    - cron: '0 8 * * *'  # Runs every day at 8 AM UTC
   workflow_dispatch:      # Allows manual run
 
 jobs:
@@ -21,18 +21,22 @@ jobs:
     - name: Install dependencies
       run: pip install pandas pyodbc fastparquet
 
-    - name: Load data and save parquet
+    - name: Remove old parquet parts
+      run: |
+        rm -f clientandsupplier1_part*.parquet
+
+    - name: Load data and save parquet (split)
       env:
-        SERVER: ${{ secrets.DB_SERVER }}
-        DATABASE: ${{ secrets.DB_NAME }}
-        USERNAME: ${{ secrets.DB_USER }}
-        PASSWORD: ${{ secrets.DB_PASS }}
+        DB_SERVER: ${{ secrets.DB_SERVER }}
+        DB_NAME: ${{ secrets.DB_NAME }}
+        DB_USER: ${{ secrets.DB_USER }}
+        DB_PASS: ${{ secrets.DB_PASS }}
       run: python data_loader.py
 
-    - name: Commit and push updated parquet
+    - name: Commit and push updated parquet parts
       run: |
         git config user.name "github-actions"
         git config user.email "actions@github.com"
-        git add clientandsupplier1.parquet
-        git commit -m "Auto update data"
+        git add clientandsupplier1_part*.parquet
+        git commit -m "♻️ Auto-update split parquet data"
         git push

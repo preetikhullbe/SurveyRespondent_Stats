@@ -10,10 +10,10 @@ ES_USER = os.environ.get("ES_USER")
 ES_PASS = os.environ.get("ES_PASS")
 
 def save_live_data_to_parquet_chunks():
-   es = Elasticsearch(
-     cloud_id=ES_CLOUD_ID,
-     basic_auth=(ES_USER, ES_PASS)
-    )
+    es = Elasticsearch(
+      cloud_id=ES_CLOUD_ID,
+      basic_auth=(ES_USER, ES_PASS)
+     )
 
     # Last 3 months
     end_utc = datetime.now(timezone.utc)

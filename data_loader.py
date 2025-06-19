@@ -1,47 +1,27 @@
-from elasticsearch import Elasticsearch
+import os
 import pandas as pd
 from datetime import datetime, timedelta, timezone
-import os
+from elasticsearch import Elasticsearch, helpers
 
 ES_INDEX = "uni_session"
-# Use environment variables from GitHub Actions
-ES_CLOUD_ID = os.environ.get("ES_CLOUD_ID")
-ES_USER = os.environ.get("ES_USER")
-ES_PASS = os.environ.get("ES_PASS")
 
-def save_live_data_to_parquet_chunks():
-    es = Elasticsearch(
-      cloud_id=ES_CLOUD_ID,
-      basic_auth=(ES_USER, ES_PASS)
-     )
-
-    # Last 3 months
+def fetch_last_3_months_data(es):
     end_utc = datetime.now(timezone.utc)
     start_utc = end_utc - timedelta(days=1)
-    start_utc_str = start_utc.isoformat().replace("+00:00", "Z")
-    end_utc_str = end_utc.isoformat().replace("+00:00", "Z")
 
     query = {
         "query": {
-            "bool": {
-                "must": [
-                    {
-                        "range": {
-                            "survey_enddate": {
-                                "gte": start_utc_str,
-                                "lte": end_utc_str,
-                                "format": "strict_date_optional_time"
-                            }
-                        }
-                    },
-                    {"term": {"is_active": True}},
-                    {"bool": {"must_not": {"term": {"clienttypeid": 1}}}}
-                ]
+            "range": {
+                "survey_enddate": {
+                    "gte": start_utc.isoformat().replace('+00:00', 'Z'),
+                    "lte": end_utc.isoformat().replace('+00:00', 'Z'),
+                    "format": "strict_date_optional_time"
+                }
             }
         },
         "_source": [
-            "clientname", "suppliername", "respondentstatusid", "respondentstatus",
-            "survey_date", "survey_enddate", "qualificationname"
+            "clientname", "suppliername", "respondentstatusid",
+            "respondentstatus", "survey_enddate", "qualificationname"
         ]
     }
 
@@ -61,45 +41,38 @@ def save_live_data_to_parquet_chunks():
         all_hits.extend(hits)
 
     es.clear_scroll(scroll_id=scroll_id)
+    print(f"Retrieved {len(all_hits)} records.")
+    return pd.DataFrame([hit['_source'] for hit in all_hits])
 
-    records = [hit['_source'] for hit in all_hits]
-    df = pd.DataFrame(records)
+
+def save_live_data_to_parquet_chunks():
+    es = Elasticsearch(
+        cloud_id=os.environ.get("ES_CLOUD_ID"),
+        basic_auth=(os.environ.get("ES_USER"), os.environ.get("ES_PASS"))
+    )
+
+    df = fetch_last_3_months_data(es)
 
     if df.empty:
-        print("⚠️ No data fetched.")
+        print("No data to save.")
         return
 
-    df.rename(columns={
-        "clientname": "client",
-        "suppliername": "supplier",
-        "respondentstatusid": "RespondentStatus",
-        "respondentstatus": "RespondentStatusName",
-        "survey_date": "Survey_Date",
-        "survey_enddate": "Survey_EndDate",
-        "qualificationname": "QualificationName"
-    }, inplace=True)
-
     os.makedirs("data_chunks", exist_ok=True)
+    max_file_size_mb = 25
+    chunk_rows = 100_000  # adjust based on typical row size
 
-    max_bytes = 25 * 1024 * 1024  # 25MB
-    i, chunk_idx = 0, 1
-    rows = len(df)
+    i = 0
+    for start in range(0, len(df), chunk_rows):
+        chunk = df.iloc[start:start + chunk_rows]
+        tmp_path = f"data_chunks/clientandsupplier1_part{i}.parquet"
+        chunk.to_parquet(tmp_path, index=False)
+        size_mb = os.path.getsize(tmp_path) / 1_000_000
+        if size_mb > max_file_size_mb:
+            print(f"Warning: {tmp_path} is {size_mb:.2f}MB, consider reducing chunk_rows.")
+        else:
+            print(f"Saved chunk {i} to {tmp_path} ({size_mb:.2f}MB)")
+        i += 1
 
-    while i < rows:
-        for j in range(i + 1000, rows + 1000, 1000):
-            chunk = df.iloc[i:j]
-            path = f"data_chunks/chunk_{chunk_idx}.parquet"
-            chunk.to_parquet(path, index=False)
-
-            if os.path.getsize(path) > max_bytes:
-                os.remove(path)
-                break
-
-            i = j
-            chunk_idx += 1
-            break
-
-    print(f"✅ Saved {chunk_idx - 1} chunks in 'data_chunks/' folder.")
 
 if __name__ == "__main__":
     save_live_data_to_parquet_chunks()

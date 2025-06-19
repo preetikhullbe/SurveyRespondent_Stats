@@ -82,15 +82,6 @@ def save_live_data_to_parquet_chunks():
         size_mb = os.path.getsize(chunk_path) / 1_000_000
         print(f"Saved {chunk_path} ({size_mb:.2f} MB)")
 
-    # Git commit & push
-    subprocess.run(["git", "config", "--global", "user.email", "data-bot@example.com"])
-    subprocess.run(["git", "config", "--global", "user.name", "GitHub Action Bot"])
-
-    subprocess.run(["git", "add", "data_chunks/*.parquet"])
-    subprocess.run(["git", "commit", "-m", "🔄 Auto-update: new daily data chunks"], check=False)
-    subprocess.run(["git", "push"], check=True)
-    print("Pushed updated data chunks to GitHub.")
-
 
 if __name__ == "__main__":
     save_live_data_to_parquet_chunks()

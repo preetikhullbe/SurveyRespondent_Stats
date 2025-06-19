@@ -1,8 +1,9 @@
-import pandas as pd
-import numpy as np
-
-def process_data(df,output_file, start_date=None, end_date=None, client_filter=None):
+def process_data(df, output_file, start_date=None, end_date=None, client_filter=None):
     filtered_df = df.copy()
+    
+    # 🔧 Fix for date filtering
+    filtered_df['survey_enddate'] = pd.to_datetime(filtered_df['survey_enddate'], errors='coerce')
+
     ignored_status_ids = [1, 3, 7, 15, 26]
 
     # Apply date filters

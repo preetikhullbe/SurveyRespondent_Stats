@@ -47,3 +47,19 @@ jobs:
         env:
           ES_CLOUD_ID: ${{ secrets.ES_CLOUD_ID }}
           ES_USERNAME: ${{ secrets.ES_USERNAME }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+      - name: Commit and Push Changes
+        run: |
+          git add data_chunks/*.parquet
+          git commit -m "Auto-update: new daily data chunks" || echo "No changes to commit"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+        

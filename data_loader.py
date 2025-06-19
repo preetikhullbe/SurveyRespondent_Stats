@@ -1,23 +1,23 @@
 import os
 import pandas as pd
-from datetime import datetime, timedelta, timezone
-from elasticsearch import Elasticsearch, helpers
+from datetime import datetime, timedelta
+from elasticsearch import Elasticsearch
 
 ES_INDEX = "uni_session"
 
 def fetch_last_3_months_data(es):
-    end_utc = datetime.now(timezone.utc)
-    start_utc = end_utc - timedelta(days=1)
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=1)
 
-    start_utc_str = start_utc.isoformat().replace('+00:00', 'Z')
-    end_utc_str = end_utc.isoformat().replace('+00:00', 'Z')
+    start_str = start_date.strftime("%Y-%m-%dT%H:%M:%S")
+    end_str = end_date.strftime("%Y-%m-%dT%H:%M:%S")
 
     query = {
         "query": {
             "range": {
                 "survey_enddate": {
-                    "gte": start_utc_str,
-                    "lte": end_utc_str,
+                    "gte": start_str,
+                    "lte": end_str,
                     "format": "strict_date_optional_time"
                 }
             }
@@ -52,7 +52,7 @@ def fetch_last_3_months_data(es):
 def save_live_data_to_parquet_chunks():
     es = Elasticsearch(
         cloud_id=os.environ.get("ES_CLOUD_ID"),
-        basic_auth=(os.environ.get("ES_USER"), os.environ.get("ES_PASS"))
+        basic_auth=(os.environ.get("ES_USERNAME"), os.environ.get("ES_PASSWORD"))
     )
 
     df = fetch_last_3_months_data(es)
@@ -72,10 +72,7 @@ def save_live_data_to_parquet_chunks():
         chunk_path = f"data_chunks/clientandsupplier1_part{i}.parquet"
         chunk.to_parquet(chunk_path, index=False)
         file_size = os.path.getsize(chunk_path) / 1_000_000
-        if file_size > max_file_size_mb:
-            print(f"⚠️ {chunk_path} is {file_size:.2f} MB (exceeds 25MB)")
-        else:
-            print(f"✅ Saved {chunk_path} ({file_size:.2f} MB)")
+        print(f"✅ Saved {chunk_path} ({file_size:.2f} MB)")
         i += 1
 
 

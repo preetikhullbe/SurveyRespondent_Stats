@@ -3,6 +3,14 @@ import pandas as pd
 from datetime import datetime, timedelta
 from elasticsearch import Elasticsearch
 
+# Debugging: check if env var is loaded
+cloud_id = os.getenv("ES_CLOUD_ID")
+if not cloud_id:
+    raise ValueError("❌ ES_CLOUD_ID environment variable not found.")
+
+if ":" not in cloud_id:
+    raise ValueError(f"❌ ES_CLOUD_ID format issue: '{cloud_id}'")
+
 ES_INDEX = "uni_session"
 cloud_id = os.getenv("ES_CLOUD_ID")
 username = os.getenv("ES_USERNAME")

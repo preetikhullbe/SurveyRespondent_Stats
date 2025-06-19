@@ -91,9 +91,14 @@ st.markdown('<div class="title">Survey Respondent Report Generator</div>', unsaf
 @st.cache_data(ttl=86400)
 def load_cached_data():
     chunk_folder = os.path.join(os.path.dirname(__file__), "data_chunks")
+
+    if not os.path.exists(chunk_folder):
+        st.error("❌ Data not found. Please make sure the `data_chunks/` folder exists with .parquet files.")
+        st.stop()
+
     chunk_files = sorted(
         [f for f in os.listdir(chunk_folder) if f.endswith(".parquet")],
-        key=lambda x: int(x.split("_")[1].split(".")[0])
+        key=lambda x: int(x.split("part")[1].split(".")[0])
     )
     all_chunks = [pd.read_parquet(os.path.join(chunk_folder, f)) for f in chunk_files]
     df = pd.concat(all_chunks, ignore_index=True)
@@ -104,7 +109,7 @@ with st.container():
     st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
     df = load_cached_data()
-    clients = sorted(df['client'].dropna().unique())
+    clients = sorted(df['clientname'].dropna().unique())
 
     left_col, right_col = st.columns([1, 2], gap="small")
     report_generated = False

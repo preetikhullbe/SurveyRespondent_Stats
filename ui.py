@@ -2,10 +2,12 @@ import streamlit as st
 import pandas as pd
 import tempfile
 import base64
-from finilized_respondent import process_data
-from datetime import datetime, timedelta
+import os
 import time
+from datetime import datetime, timedelta
+from finilized_respondent import process_data
 
+# Set up the Streamlit page
 st.set_page_config(page_title="Report Generator", layout="wide")
 
 # Load background image and convert to base64
@@ -16,7 +18,7 @@ def get_base64(file_path):
 
 background_base64 = get_base64("background.png")
 
-# Inject fixed full-page layout and styling
+# Inject styling
 st.markdown(f"""
     <style>
     html, body, .stApp {{
@@ -82,32 +84,29 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# Title with single-line margin
+# Title
 st.markdown('<div class="title">Survey Respondent Report Generator</div>', unsafe_allow_html=True)
 
-# Main content
-with st.container():
-    st.markdown('<div class="main-content">', unsafe_allow_html=True)
-
+# Caching loaded data
 @st.cache_data(ttl=86400)
 def load_cached_data():
-    import os
-    import pandas as pd
-
-    chunk_folder = "data_chunks"
+    chunk_folder = os.path.join(os.path.dirname(__file__), "data_chunks")
     chunk_files = sorted(
         [f for f in os.listdir(chunk_folder) if f.endswith(".parquet")],
         key=lambda x: int(x.split("_")[1].split(".")[0])
     )
-
     all_chunks = [pd.read_parquet(os.path.join(chunk_folder, f)) for f in chunk_files]
     df = pd.concat(all_chunks, ignore_index=True)
     return df
-    df=load_cached_data()
-    clients = sorted(df['client'].unique())
+
+# Load the data
+with st.container():
+    st.markdown('<div class="main-content">', unsafe_allow_html=True)
+
+    df = load_cached_data()
+    clients = sorted(df['client'].dropna().unique())
 
     left_col, right_col = st.columns([1, 2], gap="small")
-
     report_generated = False
     tmp_file_path = None
 
@@ -129,18 +128,14 @@ def load_cached_data():
             end_date = today
 
         if preset == "Custom":
-            start_date = st.date_input("Start Date", None)
-            end_date = st.date_input("End Date", None)
+            start_date = st.date_input("Start Date")
+            end_date = st.date_input("End Date")
         else:
             st.markdown(f"**Start Date:** {start_date}")
             st.markdown(f"**End Date:** {end_date}")
 
-        # Buttons in the same row
         btn_col1, btn_col2 = st.columns([1, 1])
-        generate_clicked = False
-
-        with btn_col1:
-            generate_clicked = st.button("Generate Report")
+        generate_clicked = btn_col1.button("Generate Report")
 
     with right_col:
         if generate_clicked:
@@ -151,30 +146,26 @@ def load_cached_data():
             elif not selected_clients:
                 st.warning("⚠️ Please select at least one client.")
             else:
-                client_to_pass = None if "All" in selected_clients else selected_clients
+                client_filter = None if "All" in selected_clients else selected_clients
 
-                progress_text = "⏳ Generating report..."
-                my_bar = st.progress(0, text=progress_text)
+                my_bar = st.progress(0, text="⏳ Generating report...")
                 for percent_complete in range(0, 101):
                     time.sleep(0.005)
-                    my_bar.progress(percent_complete, text=f"{progress_text} {percent_complete}%")
+                    my_bar.progress(percent_complete, text=f"⏳ Generating report... {percent_complete}%")
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
-                   process_data(df,tmp.name, start_date, end_date, client_to_pass)
-                   tmp_file_path = tmp.name
+                    process_data(df, tmp.name, start_date, end_date, client_filter)
+                    tmp_file_path = tmp.name
 
-                   df_preview = pd.read_excel(tmp_file_path)
+                    df_preview = pd.read_excel(tmp_file_path)
+                    if df_preview.empty:
+                        st.warning("⚠️ Report is empty, select any other data range.")
+                        report_generated = False
+                    else:
+                        st.success("✅ Report Generated Successfully!")
+                        st.dataframe(df_preview, use_container_width=True, height=305)
+                        report_generated = True
 
-                   if len(df_preview) < 1:
-                      st.warning("⚠️ Report is empty, select any other data range.")
-                      report_generated = False
-                   else:
-                      st.success("✅ Report Generated Successfully!")
-                      st.dataframe(df_preview, use_container_width=True, height=305)
-                      report_generated = True
-
-
-    # Show download button in the same row
     if report_generated and tmp_file_path:
         with btn_col2:
             with open(tmp_file_path, "rb") as f:

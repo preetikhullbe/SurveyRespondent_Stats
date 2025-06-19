@@ -9,7 +9,7 @@ cloud_id = os.getenv("ES_CLOUD_ID")
 username = os.getenv("ES_USERNAME")
 password = os.getenv("ES_PASSWORD")
 
-if not all([ES_CLOUD_ID, ES_USERNAME, ES_PASSWORD]):
+if not all([cloud_id, username, password]):
     raise ValueError("❌ One or more Elasticsearch credentials are missing.")
     
 def fetch_last_3_months_data(es):

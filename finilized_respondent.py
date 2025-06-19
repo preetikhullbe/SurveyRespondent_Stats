@@ -120,8 +120,8 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
         how='left'
     )
     for col in ['respondentstatus', 'Drop_Count', 'Drop_Percent']:
-    if col not in final.columns:
-        final[col] = np.nan
+       if col not in final.columns:
+         final[col] = np.nan
 
     final.rename(columns={
         'clientname': 'Client',

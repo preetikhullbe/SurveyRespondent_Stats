@@ -7,9 +7,9 @@ ES_INDEX = "uni_session"
 
 def save_live_data_to_parquet_chunks():
     es = Elasticsearch(
-        cloud_id="UnimrktResponse_Production_Deployment:dXMtZWFzdDQuZ2NwLmVsYXN0aWMtY2xvdWQuY29tOjQ0MyQ5MWI3NzVjZWE1MmM0YmQ4YTlhMjVjZTVmMTA3ZDgyMCRmODIxODdmNzMzZWM0ZmUxYmJhMjMxMDYyMzc2MWMyMQ==",  # replace
-        http_auth=("elastic", "SN7JKTSEzkOvgxnZBHiYburJ")
-    )
+     cloud_id=st.secrets["ES_CLOUD_ID"],
+     basic_auth=(st.secrets["ES_USERNAME"], st.secrets["ES_PASSWORD"])
+   )
 
     # Last 3 months
     end_utc = datetime.now(timezone.utc)

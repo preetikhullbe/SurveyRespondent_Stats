@@ -13,35 +13,26 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Install Microsoft ODBC Driver 17 for SQL Server
-        run: |
-          sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y gnupg curl apt-transport-https
-          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-          curl https://packages.microsoft.com/config/ubuntu/20.04/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
-          sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql17
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
-        run: pip install pandas pyodbc fastparquet
+      - name: Install Python dependencies
+        run: |
+          pip install pandas fastparquet elasticsearch streamlit pyarrow
 
-      - name: Load data and save parquet
+      - name: Load data from Elasticsearch and save parquet chunks
         env:
-          DB_SERVER: ${{ secrets.DB_SERVER }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASS: ${{ secrets.DB_PASS }}
+          ES_CLOUD_ID: ${{ secrets.ES_CLOUD_ID }}
+          ES_USERNAME: ${{ secrets.ES_USERNAME }}
+          ES_PASSWORD: ${{ secrets.ES_PASSWORD }}
         run: python data_loader.py
 
-      - name: Commit and push updated parquet
+      - name: Commit and push updated parquet files
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add clientandsupplier1_part*.parquet
-          git commit -m "Auto update data"
+          git add data_chunks/*.parquet
+          git commit -m "Auto update Elasticsearch data"
           git push

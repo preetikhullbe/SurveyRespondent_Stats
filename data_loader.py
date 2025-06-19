@@ -9,12 +9,15 @@ def fetch_last_3_months_data(es):
     end_utc = datetime.now(timezone.utc)
     start_utc = end_utc - timedelta(days=1)
 
+    start_utc_str = start_utc.isoformat().replace('+00:00', 'Z')
+    end_utc_str = end_utc.isoformat().replace('+00:00', 'Z')
+
     query = {
         "query": {
             "range": {
                 "survey_enddate": {
-                    "gte": start_utc.isoformat().replace('+00:00', 'Z'),
-                    "lte": end_utc.isoformat().replace('+00:00', 'Z'),
+                    "gte": start_utc_str,
+                    "lte": end_utc_str,
                     "format": "strict_date_optional_time"
                 }
             }
@@ -41,7 +44,8 @@ def fetch_last_3_months_data(es):
         all_hits.extend(hits)
 
     es.clear_scroll(scroll_id=scroll_id)
-    print(f"Retrieved {len(all_hits)} records.")
+
+    print(f"✅ Retrieved {len(all_hits)} records.")
     return pd.DataFrame([hit['_source'] for hit in all_hits])
 
 
@@ -54,23 +58,24 @@ def save_live_data_to_parquet_chunks():
     df = fetch_last_3_months_data(es)
 
     if df.empty:
-        print("No data to save.")
+        print("⚠️ No data to save.")
         return
 
     os.makedirs("data_chunks", exist_ok=True)
-    max_file_size_mb = 25
-    chunk_rows = 100_000  # adjust based on typical row size
 
+    max_file_size_mb = 25
+    approx_rows_per_chunk = 100_000
     i = 0
-    for start in range(0, len(df), chunk_rows):
-        chunk = df.iloc[start:start + chunk_rows]
-        tmp_path = f"data_chunks/clientandsupplier1_part{i}.parquet"
-        chunk.to_parquet(tmp_path, index=False)
-        size_mb = os.path.getsize(tmp_path) / 1_000_000
-        if size_mb > max_file_size_mb:
-            print(f"Warning: {tmp_path} is {size_mb:.2f}MB, consider reducing chunk_rows.")
+
+    for start in range(0, len(df), approx_rows_per_chunk):
+        chunk = df.iloc[start:start + approx_rows_per_chunk]
+        chunk_path = f"data_chunks/clientandsupplier1_part{i}.parquet"
+        chunk.to_parquet(chunk_path, index=False)
+        file_size = os.path.getsize(chunk_path) / 1_000_000
+        if file_size > max_file_size_mb:
+            print(f"⚠️ {chunk_path} is {file_size:.2f} MB (exceeds 25MB)")
         else:
-            print(f"Saved chunk {i} to {tmp_path} ({size_mb:.2f}MB)")
+            print(f"✅ Saved {chunk_path} ({file_size:.2f} MB)")
         i += 1
 
 

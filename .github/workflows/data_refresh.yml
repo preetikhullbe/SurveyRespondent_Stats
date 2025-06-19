@@ -18,21 +18,13 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
-          pip install pandas fastparquet elasticsearch streamlit pyarrow
+          pip install pandas pyodbc fastparquet elasticsearch
 
-      - name: Load data from Elasticsearch and save parquet chunks
+      - name: Run Data Loader
         env:
           ES_CLOUD_ID: ${{ secrets.ES_CLOUD_ID }}
           ES_USERNAME: ${{ secrets.ES_USERNAME }}
           ES_PASSWORD: ${{ secrets.ES_PASSWORD }}
         run: python data_loader.py
-
-      - name: Commit and push updated parquet files
-        run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add data_chunks/*.parquet
-          git commit -m "Auto update Elasticsearch data"
-          git push

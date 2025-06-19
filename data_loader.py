@@ -3,19 +3,15 @@ import pandas as pd
 from datetime import datetime, timedelta
 from elasticsearch import Elasticsearch
 
-# Debugging: check if env var is loaded
-cloud_id = os.getenv("ES_CLOUD_ID")
-if not cloud_id:
-    raise ValueError("❌ ES_CLOUD_ID environment variable not found.")
-
-if ":" not in cloud_id:
-    raise ValueError(f"❌ ES_CLOUD_ID format issue: '{cloud_id}'")
 
 ES_INDEX = "uni_session"
 cloud_id = os.getenv("ES_CLOUD_ID")
 username = os.getenv("ES_USERNAME")
 password = os.getenv("ES_PASSWORD")
 
+if not all([ES_CLOUD_ID, ES_USERNAME, ES_PASSWORD]):
+    raise ValueError("❌ One or more Elasticsearch credentials are missing.")
+    
 def fetch_last_3_months_data(es):
     end_date = datetime.now()
     start_date = end_date - timedelta(days=1)

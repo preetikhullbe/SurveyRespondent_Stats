@@ -39,7 +39,7 @@ def fetch_last_3_months_data(es):
     page_size = 10000
     all_hits = []
 
-    response = es.search(index=ES_INDEX, body=query, scroll=scroll, size=page_size)
+    response = es.search(index=ES_INDEX, query=query["query"], _source=query["_source"], scroll=scroll, size=page_size)
     scroll_id = response['_scroll_id']
     hits = response['hits']['hits']
     all_hits.extend(hits)

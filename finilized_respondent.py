@@ -13,23 +13,23 @@ def process_data(df,output_file, start_date=None, end_date=None, client_filter=N
 
     # Client filter
     if client_filter:
-        filtered_df = filtered_df[filtered_df['client'].isin(client_filter)]
+        filtered_df = filtered_df[filtered_df['clientname'].isin(client_filter)]
 
     # Flags
     client_start_statuses = [1, 2, 3, 4, 5, 8, 9, 22, 23, 25, 26]
-    filtered_df['is_client_start'] = filtered_df['RespondentStatus'].isin(client_start_statuses)
-    filtered_df['is_complete'] = filtered_df['RespondentStatus'] == 1
-    filtered_df['is_other_status'] = ~filtered_df['RespondentStatus'].isin(ignored_status_ids)
+    filtered_df['is_client_start'] = filtered_df['respondentstatusid'].isin(client_start_statuses)
+    filtered_df['is_complete'] = filtered_df['respondentstatusid'] == 1
+    filtered_df['is_other_status'] = ~filtered_df['respondentstatusid'].isin(ignored_status_ids)
 
     # -------------------- Client Aggregation --------------------
-    client_summary = filtered_df.groupby('client').agg(
-        Client_Total_Starts=('RespondentStatus', 'count'),
+    client_summary = filtered_df.groupby('clientname').agg(
+        Client_Total_Starts=('respondentstatusid', 'count'),
         Client_Client_Starts=('is_client_start', 'sum'),
         Client_Completes=('is_complete', 'sum')
     ).reset_index()
 
-    client_other_status = filtered_df.groupby('client')['is_other_status'].mean().mul(100).reset_index(name='other_status_rate')
-    client_summary = client_summary.merge(client_other_status, on='client', how='left')
+    client_other_status = filtered_df.groupby('clientname')['is_other_status'].mean().mul(100).reset_index(name='other_status_rate')
+    client_summary = client_summary.merge(client_other_status, on='clientname', how='left')
 
     client_summary['Client_Conversion'] = (client_summary['Client_Completes'] / client_summary['Client_Total_Starts'] * 100).round(2)
 
@@ -42,15 +42,15 @@ def process_data(df,output_file, start_date=None, end_date=None, client_filter=N
     ]
 
     # -------------------- Supplier Aggregation --------------------
-    supplier_summary = filtered_df[filtered_df['client'].isin(filtered_clients['client'])].groupby(['client', 'supplier']).agg(
-        Supplier_Total_Starts=('RespondentStatus', 'count'),
+    supplier_summary = filtered_df[filtered_df['clientname'].isin(filtered_clients['clientname'])].groupby(['clientname', 'suppliername']).agg(
+        Supplier_Total_Starts=('respondentstatusid', 'count'),
         Supplier_Client_Starts=('is_client_start', 'sum'),
         Supplier_Completes=('is_complete', 'sum')
     ).reset_index()
 
     supplier_summary['Supplier_Conversion'] = (supplier_summary['Supplier_Completes'] / supplier_summary['Supplier_Total_Starts'] * 100).round(2)
-    supplier_other_status = filtered_df.groupby(['client', 'supplier'])['is_other_status'].mean().mul(100).reset_index(name='supplier_other_status_rate')
-    supplier_summary = supplier_summary.merge(supplier_other_status, on=['client', 'supplier'], how='left')
+    supplier_other_status = filtered_df.groupby(['clientname', 'suppliername'])['is_other_status'].mean().mul(100).reset_index(name='supplier_other_status_rate')
+    supplier_summary = supplier_summary.merge(supplier_other_status, on=['clientname', 'suppliername'], how='left')
 
     supplier_filtered = supplier_summary[
         (supplier_summary['Supplier_Total_Starts'] > 500) & 
@@ -61,55 +61,55 @@ def process_data(df,output_file, start_date=None, end_date=None, client_filter=N
     ].copy()
 
     # -------------------- Dropout Aggregation (Top 4) --------------------
-    dropouts = filtered_df[filtered_df['RespondentStatusName'].notnull()]
-    dropout_counts = dropouts.groupby(['client', 'supplier', 'RespondentStatusName']).size().reset_index(name='Drop_Count')
+    dropouts = filtered_df[filtered_df['respondentstatus'].notnull()]
+    dropout_counts = dropouts.groupby(['clientname', 'suppliername', 'respondentstatus']).size().reset_index(name='Drop_Count')
 
     dropout_counts = dropout_counts.merge(
-        supplier_filtered[['client', 'supplier', 'Supplier_Total_Starts']],
-        on=['client', 'supplier'],
+        supplier_filtered[['clientname', 'suppliername', 'Supplier_Total_Starts']],
+        on=['clientname', 'suppliername'],
         how='inner'
     )
 
     dropout_counts['Drop_Percent'] = (dropout_counts['Drop_Count'] / dropout_counts['Supplier_Total_Starts'] * 100).round(2)
 
     # ✅ FILTER before taking top 4
-    dropout_counts = dropout_counts[~dropout_counts['RespondentStatusName'].isin(['Client Terminate','Client No Survey','Complete','Duplicate User','Duplicate IP'])]
-    dropout_counts = dropout_counts.sort_values(['client', 'supplier', 'Drop_Count'], ascending=[True, True, False])
-    top_dropouts = dropout_counts.groupby(['client', 'supplier']).head(3)
+    dropout_counts = dropout_counts[~dropout_counts['respondentstatus'].isin(['Client Terminate','Client No Survey','Complete','Duplicate User','Duplicate IP'])]
+    dropout_counts = dropout_counts.sort_values(['clientname', 'suppliername', 'Drop_Count'], ascending=[True, True, False])
+    top_dropouts = dropout_counts.groupby(['clientname', 'suppliername']).head(3)
 
 
     # -------------------- Qualification Aggregation (Top 3) --------------------
-    demo_df = filtered_df[filtered_df['RespondentStatusName'] == 'DemoTerminate']
-    qualification_counts = demo_df.groupby(['client', 'supplier', 'QualificationName']).size().reset_index(name='Qualification_Count')
+    demo_df = filtered_df[filtered_df['respondentstatus'] == 'DemoTerminate']
+    qualification_counts = demo_df.groupby(['clientname', 'suppliername', 'qualificationname']).size().reset_index(name='Qualification_Count')
 
-    demo_total = demo_df.groupby(['client', 'supplier']).size().reset_index(name='Total_DemoTerminate')
-    qualification_counts = qualification_counts.merge(demo_total, on=['client', 'supplier'], how='left')
+    demo_total = demo_df.groupby(['clientname', 'suppliername']).size().reset_index(name='Total_DemoTerminate')
+    qualification_counts = qualification_counts.merge(demo_total, on=['clientname', 'suppliername'], how='left')
     qualification_counts['Qualification_Percent'] = (qualification_counts['Qualification_Count'] / qualification_counts['Total_DemoTerminate'] * 100).round(2)
 
-    qualification_counts = qualification_counts.sort_values(['client', 'supplier', 'Qualification_Count'], ascending=[True, True, False])
-    top_qualifications = qualification_counts.groupby(['client', 'supplier']).head(3)
+    qualification_counts = qualification_counts.sort_values(['clientname', 'suppliername', 'Qualification_Count'], ascending=[True, True, False])
+    top_qualifications = qualification_counts.groupby(['clientname', 'suppliername']).head(3)
 
     # -------------------- Merge Dropouts Only --------------------
     final = supplier_filtered.merge(
-        filtered_clients[['client', 'Client_Total_Starts', 'Client_Client_Starts', 'Client_Conversion']],
-        on='client',
+        filtered_clients[['clientname', 'Client_Total_Starts', 'Client_Client_Starts', 'Client_Conversion']],
+        on='clientname',
         how='left'
     ).merge(
         top_dropouts,
-        on=['client', 'supplier'],
+        on=['clientname', 'suppliername'],
         how='left'
     )
 
     final.rename(columns={
-        'client': 'Client',
-        'supplier': 'Supplier',
+        'clientname': 'Client',
+        'suppliername': 'Supplier',
         'Client_Total_Starts': 'Starts(client)',
         'Client_Client_Starts': 'Client Starts',
         'Client_Conversion': 'Conversion(client)',
         'Supplier_Total_Starts_x': 'Starts(supplier)',
         'Supplier_Client_Starts': 'Client Starts(supplier)',
         'Supplier_Conversion': 'Conversion(supplier)',
-        'RespondentStatusName': 'Respondent Status',
+        'respondentstatus': 'Respondent Status',
         'Drop_Count': 'Count',
         'Drop_Percent': 'Percentage'
     }, inplace=True)

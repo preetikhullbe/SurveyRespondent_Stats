@@ -5,3 +5,4 @@ xlsxwriter
 pyarrow
 openpyxl
 pandas[excel]
+elasticsearch==8.7.0

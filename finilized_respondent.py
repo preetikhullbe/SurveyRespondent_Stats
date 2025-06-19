@@ -7,9 +7,9 @@ def process_data(df,output_file, start_date=None, end_date=None, client_filter=N
 
     # Apply date filters
     if start_date:
-        filtered_df = filtered_df[filtered_df['Survey_EndDate'] >= pd.to_datetime(start_date)]
+        filtered_df = filtered_df[filtered_df['survey_enddate'] >= pd.to_datetime(start_date)]
     if end_date:
-        filtered_df = filtered_df[filtered_df['Survey_EndDate'] <= pd.to_datetime(end_date)]
+        filtered_df = filtered_df[filtered_df['survey_enddate'] <= pd.to_datetime(end_date)]
 
     # Client filter
     if client_filter:

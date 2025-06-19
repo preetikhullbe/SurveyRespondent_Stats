@@ -20,10 +20,21 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
     ignored_status_ids = [1, 3, 7, 15, 26]
 
     # Apply date filters
-    if start_date:
-        filtered_df = filtered_df[filtered_df['survey_enddate'] >= pd.to_datetime(start_date)]
-    if end_date:
-        filtered_df = filtered_df[filtered_df['survey_enddate'] <= pd.to_datetime(end_date)]
+    # Convert string inputs to datetime safely
+    if start_date is not None:
+       try:
+         start_dt = pd.to_datetime(start_date)
+         filtered_df = filtered_df[filtered_df['survey_enddate'] >= start_dt]
+       except Exception as e:
+         print(f"⚠️ Invalid start_date: {start_date} — {e}")
+
+    if end_date is not None:
+       try:
+         end_dt = pd.to_datetime(end_date)
+         filtered_df = filtered_df[filtered_df['survey_enddate'] <= end_dt]
+       except Exception as e:
+         print(f"⚠️ Invalid end_date: {end_date} — {e}")
+
 
     if client_filter:
         filtered_df = filtered_df[filtered_df['clientname'].isin(client_filter)]

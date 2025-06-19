@@ -4,12 +4,16 @@ from datetime import datetime, timedelta, timezone
 import os
 
 ES_INDEX = "uni_session"
+# Use environment variables from GitHub Actions
+ES_CLOUD_ID = os.environ.get("ES_CLOUD_ID")
+ES_USER = os.environ.get("ES_USER")
+ES_PASS = os.environ.get("ES_PASS")
 
 def save_live_data_to_parquet_chunks():
-    es = Elasticsearch(
-     cloud_id=st.secrets["ES_CLOUD_ID"],
-     basic_auth=(st.secrets["ES_USERNAME"], st.secrets["ES_PASSWORD"])
-   )
+   es = Elasticsearch(
+     cloud_id=ES_CLOUD_ID,
+     basic_auth=(ES_USER, ES_PASS)
+    )
 
     # Last 3 months
     end_utc = datetime.now(timezone.utc)

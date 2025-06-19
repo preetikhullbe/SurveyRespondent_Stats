@@ -4,6 +4,9 @@ from datetime import datetime, timedelta
 from elasticsearch import Elasticsearch
 
 ES_INDEX = "uni_session"
+cloud_id = os.getenv("ES_CLOUD_ID")
+username = os.getenv("ES_USERNAME")
+password = os.getenv("ES_PASSWORD")
 
 def fetch_last_3_months_data(es):
     end_date = datetime.now()
@@ -51,10 +54,9 @@ def fetch_last_3_months_data(es):
 
 def save_live_data_to_parquet_chunks():
     es = Elasticsearch(
-        cloud_id=os.environ.get("ES_CLOUD_ID"),
-        basic_auth=(os.environ.get("ES_USERNAME"), os.environ.get("ES_PASSWORD"))
+    cloud_id=cloud_id,
+    basic_auth=(username, password)
     )
-
     df = fetch_last_3_months_data(es)
 
     if df.empty:

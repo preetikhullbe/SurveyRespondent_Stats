@@ -119,6 +119,9 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
         on=['clientname', 'suppliername'],
         how='left'
     )
+    for col in ['respondentstatus', 'Drop_Count', 'Drop_Percent']:
+    if col not in final.columns:
+        final[col] = np.nan
 
     final.rename(columns={
         'clientname': 'Client',
@@ -133,6 +136,8 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
         'Drop_Count': 'Count',
         'Drop_Percent': 'Percentage'
     }, inplace=True)
+
+    print("Final columns available:", final.columns.tolist())
 
     final = final[['Client', 'Starts(client)', 'Client Starts', 'Conversion(client)',
                    'Supplier', 'Starts(supplier)', 'Client Starts(supplier)', 'Conversion(supplier)',

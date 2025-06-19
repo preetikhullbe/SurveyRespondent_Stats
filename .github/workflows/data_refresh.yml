@@ -20,7 +20,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pandas pyodbc fastparquet elasticsearch
+          pip install pandas pyodbc fastparquet elasticsearch==8.7.0
 
       - name: Run Data Loader
         env:

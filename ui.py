@@ -144,22 +144,22 @@ with st.container():
 
     with right_col:
         if generate_clicked:
-    if not start_date or not end_date:
-        st.warning("⚠️ Please select both Start Date and End Date.")
-    elif end_date < start_date:
-        st.warning("⚠️ End Date must be after Start Date.")
-    elif not selected_clients:
-        st.warning("⚠️ Please select at least one client.")
-    else:
-        client_filter = None if "All" in selected_clients else selected_clients
+          if not start_date or not end_date:
+            st.warning("⚠️ Please select both Start Date and End Date.")
+          elif end_date < start_date:
+            st.warning("⚠️ End Date must be after Start Date.")
+          elif not selected_clients:
+            st.warning("⚠️ Please select at least one client.")
+          else:
+            client_filter = None if "All" in selected_clients else selected_clients
 
-        my_bar = st.progress(0, text="⏳ Preparing to generate report...")
+            my_bar = st.progress(0, text="⏳ Preparing to generate report...")
 
-        def update_progress(progress, message):
-            my_bar.progress(min(progress, 1.0), text=f"{message} ({int(progress * 100)}%)")
+            def update_progress(progress, message):
+               my_bar.progress(min(progress, 1.0), text=f"{message} ({int(progress * 100)}%)")
 
-        try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+            try:
+               with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
                 process_data(
                     df,
                     tmp.name,
@@ -170,10 +170,10 @@ with st.container():
                 )
                 tmp_file_path = tmp.name
 
-            if not os.path.exists(tmp_file_path) or os.path.getsize(tmp_file_path) == 0:
+              if not os.path.exists(tmp_file_path) or os.path.getsize(tmp_file_path) == 0:
                 st.warning("⚠️ Report generation failed or resulted in an empty file.")
                 report_generated = False
-            else:
+              else:
                 df_preview = pd.read_excel(tmp_file_path)
                 if df_preview.empty:
                     st.warning("⚠️ The report contains no data for the selected filters. Please adjust the date range or client.")

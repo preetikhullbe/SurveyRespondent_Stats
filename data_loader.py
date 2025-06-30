@@ -16,7 +16,7 @@ if not all([cloud_id, username, password]):
 
 def fetch_last_3_months_data(es):
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=10)
+    start_date = end_date - timedelta(days=30)
 
     start_str = start_date.strftime("%Y-%m-%dT%H:%M:%S")
     end_str = end_date.strftime("%Y-%m-%dT%H:%M:%S")

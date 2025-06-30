@@ -2,7 +2,7 @@ name: Daily Data Refresh
 
 on:
   schedule:
-    - cron: '30 19 * * *'  # ⏰ 1:00 AM IST (7:30 PM UTC)
+    - cron: '30 19 * * *'  # 1:00 AM IST
   workflow_dispatch:
 
 jobs:
@@ -36,6 +36,8 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}
-          git add data_chunks/*.parquet
+
+          git add data_chunks/clientandsupplier1_part*.parquet
+          git ls-files --deleted -z | xargs -0 git rm  # remove deleted files
           git commit -m "🔄 Auto-update parquet chunks [$(date)]" || echo "No changes to commit"
           git push origin HEAD:${{ github.ref }}

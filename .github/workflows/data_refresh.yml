@@ -38,6 +38,12 @@ jobs:
           git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}
 
           git add data_chunks/clientandsupplier1_part*.parquet
-          git ls-files --deleted -z | xargs -0 git rm  # remove deleted files
+
+          # Check for deleted files before trying to remove them
+          deleted=$(git ls-files --deleted)
+          if [ -n "$deleted" ]; then
+            echo "$deleted" | xargs git rm
+          fi
+
           git commit -m "🔄 Auto-update parquet chunks [$(date)]" || echo "No changes to commit"
           git push origin HEAD:${{ github.ref }}

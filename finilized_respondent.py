@@ -7,7 +7,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
         if progress_callback:
             progress_callback(step, message)
 
-    update_progress(5, "Validating columns & converting dates...")
+    update_progress(0.05, "Validating columns & converting dates...")
     filtered_df = df.copy()
 
     expected_cols = ['survey_enddate', 'clientname', 'suppliername',
@@ -33,7 +33,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
     if client_filter:
         filtered_df = filtered_df[filtered_df['clientname'].isin(client_filter)]
 
-    update_progress(25, "Computing client-level metrics...")
+    update_progress(0.25, "Computing client-level metrics...")
 
     client_start_statuses = [1, 2, 3, 4, 5, 8, 9, 22, 23, 25, 26]
     filtered_df['is_client_start'] = filtered_df['respondentstatusid'].isin(client_start_statuses)
@@ -52,7 +52,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
 
     client_summary['Client_Conversion'] = (client_summary['Client_Completes'] / client_summary['Client_Total_Starts'] * 100).round(2)
 
-    update_progress(40, "Filtering flagged clients...")
+    update_progress(0.4, "Filtering flagged clients...")
 
     filtered_clients = client_summary[
         (client_summary['Client_Total_Starts'] > 2000) &
@@ -62,7 +62,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
         )
     ]
 
-    update_progress(50, "Computing supplier-level metrics...")
+    update_progress(0.5, "Computing supplier-level metrics...")
 
     supplier_summary = filtered_df[filtered_df['clientname'].isin(filtered_clients['clientname'])].groupby(['clientname', 'suppliername']).agg(
         Supplier_Total_Starts=('respondentstatusid', 'count'),
@@ -74,7 +74,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
     supplier_other_status = filtered_df.groupby(['clientname', 'suppliername'])['is_other_status'].mean().mul(100).reset_index(name='supplier_other_status_rate')
     supplier_summary = supplier_summary.merge(supplier_other_status, on=['clientname', 'suppliername'], how='left')
 
-    update_progress(60, "Filtering flagged suppliers...")
+    update_progress(0.6, "Filtering flagged suppliers...")
 
     supplier_filtered = supplier_summary[
         (supplier_summary['Supplier_Total_Starts'] > 500) &
@@ -84,7 +84,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
         )
     ].copy()
 
-    update_progress(70, "Aggregating dropouts...")
+    update_progress(0.7, "Aggregating dropouts...")
 
     dropouts = filtered_df[filtered_df['respondentstatus'].notnull()]
     dropout_counts = dropouts.groupby(['clientname', 'suppliername', 'respondentstatus']).size().reset_index(name='Drop_Count')
@@ -103,7 +103,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
     dropout_counts = dropout_counts.sort_values(['clientname', 'suppliername', 'Drop_Count'], ascending=[True, True, False])
     top_dropouts = dropout_counts.groupby(['clientname', 'suppliername']).head(3)
 
-    update_progress(80, "Aggregating qualifications...")
+    update_progress(0.8, "Aggregating qualifications...")
 
     demo_df = filtered_df[filtered_df['respondentstatus'] == 'DemoTerminate']
     qualification_counts = demo_df.groupby(['clientname', 'suppliername', 'qualificationname']).size().reset_index(name='Qualification_Count')
@@ -115,7 +115,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
     qualification_counts = qualification_counts.sort_values(['clientname', 'suppliername', 'Qualification_Count'], ascending=[True, True, False])
     top_qualifications = qualification_counts.groupby(['clientname', 'suppliername']).head(3)
 
-    update_progress(90, "Merging all data...")
+    update_progress(0.9, "Merging all data...")
 
     final = supplier_filtered.merge(
         filtered_clients[['clientname', 'Client_Total_Starts', 'Client_Client_Starts', 'Client_Conversion']],
@@ -150,7 +150,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
 
     final = final.sort_values(by=['Starts(client)', 'Starts(supplier)'], ascending=[False, False])
 
-    update_progress(95, "Writing to Excel file...")
+    update_progress(0.95, "Writing to Excel file...")
 
     with pd.ExcelWriter(output_file, engine='xlsxwriter') as writer:
         final.to_excel(writer, index=False, sheet_name='Report')
@@ -215,4 +215,4 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
 
             start_row += client_rows
 
-    update_progress(100, "✅ Report generation complete.")
+    update_progress(1.0, "✅ Report generation complete.")

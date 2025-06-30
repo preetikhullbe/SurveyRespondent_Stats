@@ -2,48 +2,45 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta, timezone
 
-def process_data(df, output_file, start_date=None, end_date=None, client_filter=None):
+def process_data(df, output_file, start_date=None, end_date=None, client_filter=None, progress_callback=None):
+    def update_progress(step, message=""):
+        if progress_callback:
+            progress_callback(step, message)
+
+    update_progress(5, "Validating columns & converting dates...")
     filtered_df = df.copy()
 
-    # Ensure required columns are present
     expected_cols = ['survey_enddate', 'clientname', 'suppliername',
                      'respondentstatusid', 'respondentstatus', 'qualificationname']
     missing_cols = [col for col in expected_cols if col not in filtered_df.columns]
     if missing_cols:
         raise ValueError(f"Missing expected columns in data: {missing_cols}")
 
-    # Ensure survey_enddate is datetime
-    #filtered_df['survey_enddate'] = pd.to_datetime(filtered_df['survey_enddate'], errors='coerce')
+    filtered_df['survey_enddate'] = pd.to_datetime(filtered_df['survey_enddate'], errors='coerce', utc=True)
 
-    ignored_status_ids = [1, 3, 7, 15, 26]
-    # Apply date filters
-    # Ensure datetime conversion
-    filtered_df['survey_enddate'] = pd.to_datetime(filtered_df['survey_enddate'], errors='coerce',utc=True)
-
-    # Apply filters safely
     if start_date:
-      start_date = pd.to_datetime(start_date)
-      if start_date.tzinfo is None:
-        start_date = start_date.tz_localize('UTC')
-      filtered_df = filtered_df[filtered_df['survey_enddate'] >= start_date]
+        start_date = pd.to_datetime(start_date)
+        if start_date.tzinfo is None:
+            start_date = start_date.tz_localize('UTC')
+        filtered_df = filtered_df[filtered_df['survey_enddate'] >= start_date]
 
     if end_date:
-      end_date = pd.to_datetime(end_date)
-      if end_date.tzinfo is None:
-        end_date = end_date.tz_localize('UTC')
-      filtered_df = filtered_df[filtered_df['survey_enddate'] <= end_date]
-
-
+        end_date = pd.to_datetime(end_date)
+        if end_date.tzinfo is None:
+            end_date = end_date.tz_localize('UTC')
+        filtered_df = filtered_df[filtered_df['survey_enddate'] <= end_date]
 
     if client_filter:
         filtered_df = filtered_df[filtered_df['clientname'].isin(client_filter)]
 
+    update_progress(25, "Computing client-level metrics...")
+
     client_start_statuses = [1, 2, 3, 4, 5, 8, 9, 22, 23, 25, 26]
     filtered_df['is_client_start'] = filtered_df['respondentstatusid'].isin(client_start_statuses)
     filtered_df['is_complete'] = filtered_df['respondentstatusid'] == 1
+    ignored_status_ids = [1, 3, 7, 15, 26]
     filtered_df['is_other_status'] = ~filtered_df['respondentstatusid'].isin(ignored_status_ids)
 
-    # Client Aggregation
     client_summary = filtered_df.groupby('clientname').agg(
         Client_Total_Starts=('respondentstatusid', 'count'),
         Client_Client_Starts=('is_client_start', 'sum'),
@@ -55,6 +52,8 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
 
     client_summary['Client_Conversion'] = (client_summary['Client_Completes'] / client_summary['Client_Total_Starts'] * 100).round(2)
 
+    update_progress(40, "Filtering flagged clients...")
+
     filtered_clients = client_summary[
         (client_summary['Client_Total_Starts'] > 2000) &
         (
@@ -63,7 +62,8 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
         )
     ]
 
-    # Supplier Aggregation
+    update_progress(50, "Computing supplier-level metrics...")
+
     supplier_summary = filtered_df[filtered_df['clientname'].isin(filtered_clients['clientname'])].groupby(['clientname', 'suppliername']).agg(
         Supplier_Total_Starts=('respondentstatusid', 'count'),
         Supplier_Client_Starts=('is_client_start', 'sum'),
@@ -74,6 +74,8 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
     supplier_other_status = filtered_df.groupby(['clientname', 'suppliername'])['is_other_status'].mean().mul(100).reset_index(name='supplier_other_status_rate')
     supplier_summary = supplier_summary.merge(supplier_other_status, on=['clientname', 'suppliername'], how='left')
 
+    update_progress(60, "Filtering flagged suppliers...")
+
     supplier_filtered = supplier_summary[
         (supplier_summary['Supplier_Total_Starts'] > 500) &
         (
@@ -82,7 +84,8 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
         )
     ].copy()
 
-    # Dropout Aggregation
+    update_progress(70, "Aggregating dropouts...")
+
     dropouts = filtered_df[filtered_df['respondentstatus'].notnull()]
     dropout_counts = dropouts.groupby(['clientname', 'suppliername', 'respondentstatus']).size().reset_index(name='Drop_Count')
 
@@ -100,7 +103,8 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
     dropout_counts = dropout_counts.sort_values(['clientname', 'suppliername', 'Drop_Count'], ascending=[True, True, False])
     top_dropouts = dropout_counts.groupby(['clientname', 'suppliername']).head(3)
 
-    # Qualification Aggregation
+    update_progress(80, "Aggregating qualifications...")
+
     demo_df = filtered_df[filtered_df['respondentstatus'] == 'DemoTerminate']
     qualification_counts = demo_df.groupby(['clientname', 'suppliername', 'qualificationname']).size().reset_index(name='Qualification_Count')
 
@@ -111,7 +115,8 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
     qualification_counts = qualification_counts.sort_values(['clientname', 'suppliername', 'Qualification_Count'], ascending=[True, True, False])
     top_qualifications = qualification_counts.groupby(['clientname', 'suppliername']).head(3)
 
-    # Merge Dropouts
+    update_progress(90, "Merging all data...")
+
     final = supplier_filtered.merge(
         filtered_clients[['clientname', 'Client_Total_Starts', 'Client_Client_Starts', 'Client_Conversion']],
         on='clientname', how='left'
@@ -139,15 +144,14 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
         'Drop_Percent': 'Percentage'
     }, inplace=True)
 
-    print("Final columns available:", final.columns.tolist())
-
     final = final[['Client', 'Starts(client)', 'Client Starts', 'Conversion(client)',
                    'Supplier', 'Starts(supplier)', 'Client Starts(supplier)', 'Conversion(supplier)',
                    'Respondent Status', 'Count', 'Percentage']]
 
     final = final.sort_values(by=['Starts(client)', 'Starts(supplier)'], ascending=[False, False])
 
-    # Export
+    update_progress(95, "Writing to Excel file...")
+
     with pd.ExcelWriter(output_file, engine='xlsxwriter') as writer:
         final.to_excel(writer, index=False, sheet_name='Report')
         workbook = writer.book
@@ -211,4 +215,4 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
 
             start_row += client_rows
 
-    print("✅ Fully Correct Report Generated!")
+    update_progress(100, "✅ Report generation complete.")

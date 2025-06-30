@@ -12,12 +12,17 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
         raise ValueError(f"Missing expected columns in data: {missing_cols}")
 
     # Ensure survey_enddate is datetime
-    filtered_df['survey_enddate'] = pd.to_datetime(filtered_df['survey_enddate'], errors='coerce')
+    #filtered_df['survey_enddate'] = pd.to_datetime(filtered_df['survey_enddate'], errors='coerce')
 
     ignored_status_ids = [1, 3, 7, 15, 26]
+    # Apply date filters
+    if start_date:
+        filtered_df = filtered_df[filtered_df['survey_enddate'] >= pd.to_datetime(start_date)]
+    if end_date:
+        filtered_df = filtered_df[filtered_df['survey_enddate'] <= pd.to_datetime(end_date)]
 
     # Apply date filters
-    if start_date is not None:
+   '''if start_date is not None:
         try:
             start_dt = pd.to_datetime(start_date)
             filtered_df = filtered_df[filtered_df['survey_enddate'] >= start_dt]
@@ -29,7 +34,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
             end_dt = pd.to_datetime(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
             filtered_df = filtered_df[filtered_df['survey_enddate'] <= end_dt]
         except Exception as e:
-            print(f"⚠️ Invalid end_date: {end_date} — {e}")
+            print(f"⚠️ Invalid end_date: {end_date} — {e}")'''
 
     if client_filter:
         filtered_df = filtered_df[filtered_df['clientname'].isin(client_filter)]

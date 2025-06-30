@@ -4,9 +4,6 @@ import numpy as np
 def process_data(df, output_file, start_date=None, end_date=None, client_filter=None):
     filtered_df = df.copy()
 
-    # Normalize column names to lowercase
-    filtered_df.columns = [col.lower() for col in filtered_df.columns]
-
     # Ensure required columns are present
     expected_cols = ['survey_enddate', 'clientname', 'suppliername',
                      'respondentstatusid', 'respondentstatus', 'qualificationname']

@@ -144,40 +144,48 @@ with st.container():
 
     with right_col:
         if generate_clicked:
-            if not start_date or not end_date:
-                st.warning("⚠️ Please select both Start Date and End Date.")
-            elif end_date < start_date:
-                st.warning("⚠️ End Date must be after Start Date.")
-            elif not selected_clients:
-                st.warning("⚠️ Please select at least one client.")
+    if not start_date or not end_date:
+        st.warning("⚠️ Please select both Start Date and End Date.")
+    elif end_date < start_date:
+        st.warning("⚠️ End Date must be after Start Date.")
+    elif not selected_clients:
+        st.warning("⚠️ Please select at least one client.")
+    else:
+        client_filter = None if "All" in selected_clients else selected_clients
+
+        my_bar = st.progress(0, text="⏳ Preparing to generate report...")
+
+        def update_progress(progress, message):
+            my_bar.progress(min(progress, 1.0), text=f"{message} ({int(progress * 100)}%)")
+
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+                process_data(
+                    df,
+                    tmp.name,
+                    start_date=start_date,
+                    end_date=end_date,
+                    client_filter=client_filter,
+                    progress_callback=update_progress
+                )
+                tmp_file_path = tmp.name
+
+            if not os.path.exists(tmp_file_path) or os.path.getsize(tmp_file_path) == 0:
+                st.warning("⚠️ Report generation failed or resulted in an empty file.")
+                report_generated = False
             else:
-                client_filter = None if "All" in selected_clients else selected_clients
-
-                my_bar = st.progress(0, text="⏳ Generating report...")
-                for percent_complete in range(0, 101):
-                    time.sleep(0.005)
-                    my_bar.progress(percent_complete, text=f"⏳ Generating report... {percent_complete}%")
-
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
-                    process_data(df, tmp.name, start_date, end_date, client_filter)
-                    tmp_file_path = tmp.name
-
-                if not os.path.exists(tmp_file_path) or os.path.getsize(tmp_file_path) == 0:
-                    st.warning("⚠️ Report generation failed or resulted in an empty file.")
+                df_preview = pd.read_excel(tmp_file_path)
+                if df_preview.empty:
+                    st.warning("⚠️ The report contains no data for the selected filters. Please adjust the date range or client.")
                     report_generated = False
                 else:
-                    try:
-                        df_preview = pd.read_excel(tmp_file_path)
-                        if df_preview.empty:
-                            st.warning("⚠️ The report contains no data for the selected filters. Please adjust the date range or client.")
-                            report_generated = False
-                        else:
-                            st.success(f"✅ Report Generated Successfully! ({len(df_preview)} rows)")
-                            st.dataframe(df_preview, use_container_width=True, height=305)
-                            report_generated = True
-                    except Exception as e:
-                        st.error(f"❌ Failed to read the report: {e}")
-                        report_generated = False
+                    st.success(f"✅ Report Generated Successfully! ({len(df_preview)} rows)")
+                    st.dataframe(df_preview, use_container_width=True, height=305)
+                    report_generated = True
+
+        except Exception as e:
+            st.error(f"❌ Report generation failed: {e}")
+            report_generated = False
 
     if report_generated and tmp_file_path:
         with btn_col2:

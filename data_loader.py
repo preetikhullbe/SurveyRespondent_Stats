@@ -82,7 +82,7 @@ def save_live_data_to_parquet_chunks():
         table = pa.Table.from_pandas(part)
         sink = pa.BufferOutputStream()
         pq.write_table(table, sink)
-        size_mb = sink.size() / 1_000_000
+        size_mb = sink.tell() / 1_000_000
 
         if current_size + size_mb >= target_chunk_size_mb and chunk:
             combined = pd.concat(chunk)

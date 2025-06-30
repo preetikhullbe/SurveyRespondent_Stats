@@ -154,7 +154,8 @@ with st.container():
                 my_bar = st.progress(0, text="⏳ Preparing to generate report...")
 
                 def update_progress(progress, message):
-                    my_bar.progress(min(progress, 1.0), text=f"{message} ({int(progress * 100)}%)")
+                    percent = int(progress * 100)
+                    my_bar.progress(min(progress, 1.0), text=f"{message} ({percent}%)")
 
                 try:
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:

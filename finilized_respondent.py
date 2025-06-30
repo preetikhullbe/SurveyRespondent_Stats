@@ -17,7 +17,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
     ignored_status_ids = [1, 3, 7, 15, 26]
     # Apply date filters
     # Ensure datetime conversion
-    filtered_df['survey_enddate'] = pd.to_datetime(filtered_df['survey_enddate'], errors='coerce')
+    filtered_df['survey_enddate'] = pd.to_datetime(filtered_df['survey_enddate'], errors='coerce',utc=True)
 
     # Apply filters safely
     if start_date:

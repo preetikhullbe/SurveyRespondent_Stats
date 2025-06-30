@@ -129,7 +129,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
         'Client_Total_Starts': 'Starts(client)',
         'Client_Client_Starts': 'Client Starts',
         'Client_Conversion': 'Conversion(client)',
-        'Supplier_Total_Starts': 'Starts(supplier)',
+        'Supplier_Total_Starts_x': 'Starts(supplier)',
         'Supplier_Client_Starts': 'Client Starts(supplier)',
         'Supplier_Conversion': 'Conversion(supplier)',
         'respondentstatus': 'Respondent Status',

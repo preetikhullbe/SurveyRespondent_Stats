@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from elasticsearch import Elasticsearch
 import pyarrow as pa
 import pyarrow.parquet as pq
+import io
 
 ES_INDEX = "uni_session"
 cloud_id = os.getenv("ES_CLOUD_ID")
@@ -12,7 +13,7 @@ password = os.getenv("ES_PASSWORD")
 
 if not all([cloud_id, username, password]):
     raise ValueError("One or more Elasticsearch credentials are missing.")
-    
+
 def fetch_last_3_months_data(es):
     end_date = datetime.now()
     start_date = end_date - timedelta(days=3)
@@ -56,9 +57,11 @@ def fetch_last_3_months_data(es):
     print(f"Retrieved {len(all_hits)} records.")
     return pd.DataFrame([hit['_source'] for hit in all_hits])
 
-
 def save_live_data_to_parquet_chunks():
-    es = Elasticsearch(cloud_id=cloud_id, basic_auth=(username, password))
+    es = Elasticsearch(
+        cloud_id=cloud_id,
+        basic_auth=(username, password)
+    )
     df = fetch_last_3_months_data(es)
 
     if df.empty:
@@ -67,41 +70,55 @@ def save_live_data_to_parquet_chunks():
 
     os.makedirs("data_chunks", exist_ok=True)
 
+    # Clear all existing parquet files first
     for f in os.listdir("data_chunks"):
         if f.endswith(".parquet"):
             os.remove(os.path.join("data_chunks", f))
 
-    target_chunk_size_mb = 25
-    rows_per_estimate = 10000
-    chunk = []
-    current_size = 0
-    file_index = 0
+    chunk_index = 0
+    max_chunk_size_mb = 25
+    table = pa.Table.from_pandas(df)
+    batch_size = 10000
 
-    for i in range(0, len(df), rows_per_estimate):
-        part = df.iloc[i:i + rows_per_estimate]
-        table = pa.Table.from_pandas(part)
-        sink = pa.BufferOutputStream()
-        pq.write_table(table, sink)
-        size_mb = sink.tell() / 1_000_000
+    current_batch = []
+    current_size = 0.0
 
-        if current_size + size_mb >= target_chunk_size_mb and chunk:
-            combined = pd.concat(chunk)
-            chunk_path = f"data_chunks/clientandsupplier1_part{file_index}.parquet"
-            combined.to_parquet(chunk_path, index=False)
+    writer = None
+    for i in range(0, len(df), batch_size):
+        batch_df = df.iloc[i:i+batch_size]
+        batch_table = pa.Table.from_pandas(batch_df)
+
+        sink = io.BytesIO()
+        pq.write_table(batch_table, sink)
+        size_mb = sink.getbuffer().nbytes / 1_000_000
+
+        if current_size + size_mb > max_chunk_size_mb and current_batch:
+            # Write current batch to file
+            full_table = pa.Table.from_pandas(pd.concat(current_batch))
+            chunk_path = f"data_chunks/clientandsupplier1_part{chunk_index}.parquet"
+            pq.write_table(full_table, chunk_path)
             print(f"Saved {chunk_path} ({current_size:.2f} MB)")
-            file_index += 1
-            chunk = []
-            current_size = 0
+            chunk_index += 1
+            current_batch = []
+            current_size = 0.0
 
-        chunk.append(part)
+        current_batch.append(batch_df)
         current_size += size_mb
 
-    if chunk:
-        combined = pd.concat(chunk)
-        chunk_path = f"data_chunks/clientandsupplier1_part{file_index}.parquet"
-        combined.to_parquet(chunk_path, index=False)
+    # Write remaining records
+    if current_batch:
+        full_table = pa.Table.from_pandas(pd.concat(current_batch))
+        chunk_path = f"data_chunks/clientandsupplier1_part{chunk_index}.parquet"
+        pq.write_table(full_table, chunk_path)
         print(f"Saved {chunk_path} ({current_size:.2f} MB)")
 
+    # Cleanup: remove any leftover old files
+    existing_files = set(f for f in os.listdir("data_chunks") if f.endswith(".parquet"))
+    expected_files = {f"clientandsupplier1_part{i}.parquet" for i in range(chunk_index + 1)}
+    leftovers = existing_files - expected_files
+    for f in leftovers:
+        os.remove(os.path.join("data_chunks", f))
+        print(f"Removed old leftover file: {f}")
 
 if __name__ == "__main__":
     save_live_data_to_parquet_chunks()

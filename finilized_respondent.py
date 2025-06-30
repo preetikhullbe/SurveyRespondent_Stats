@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from datetime import datetime, timedelta, timezone
 
 def process_data(df, output_file, start_date=None, end_date=None, client_filter=None):
     filtered_df = df.copy()
@@ -21,11 +22,13 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
 
     # Apply filters safely
     if start_date:
-      start_date = pd.to_datetime(start_date)
+      start_date = pd.to_datetime(start_date).tz_localize('UTC') if start_date.tzinfo is None else start_date
+
+
       filtered_df = filtered_df[filtered_df['survey_enddate'] >= start_date]
 
     if end_date:
-      end_date = pd.to_datetime(end_date)
+      end_date = pd.to_datetime(end_date).tz_localize('UTC') if end_date.tzinfo is None else end_date
       filtered_df = filtered_df[filtered_df['survey_enddate'] <= end_date]
 
 

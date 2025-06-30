@@ -31,10 +31,6 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
         except Exception as e:
             print(f"⚠️ Invalid end_date: {end_date} — {e}")
 
-    print(f"📅 Applying date filter from {start_date} to {end_date}")
-    print(f"📊 Rows before filtering: {len(df)}")
-    print(f"📉 Rows after filtering: {len(filtered_df)}")
-
     if client_filter:
         filtered_df = filtered_df[filtered_df['clientname'].isin(client_filter)]
 

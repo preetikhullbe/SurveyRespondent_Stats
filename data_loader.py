@@ -70,7 +70,7 @@ def save_live_data_to_parquet_chunks():
         max_retries=3,
         retry_on_timeout=True
     )
-    df = fetch_last_3_months_data(es)
+    df = fetch_last_months_data(es)
 
     if df.empty:
         print("No data to save.")

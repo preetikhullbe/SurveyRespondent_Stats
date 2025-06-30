@@ -20,27 +20,23 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
     ignored_status_ids = [1, 3, 7, 15, 26]
 
     # Apply date filters
-    # Convert string inputs to datetime safely
     if start_date is not None:
-       try:
-         start_dt = pd.to_datetime(start_date)
-         filtered_df = filtered_df[filtered_df['survey_enddate'] >= start_dt]
-       except Exception as e:
-         print(f"⚠️ Invalid start_date: {start_date} — {e}")
+        try:
+            start_dt = pd.to_datetime(start_date)
+            filtered_df = filtered_df[filtered_df['survey_enddate'] >= start_dt]
+        except Exception as e:
+            print(f"⚠️ Invalid start_date: {start_date} — {e}")
 
     if end_date is not None:
-       try:
-        # Include full end date by setting it to 23:59:59 of that day
-         end_dt = pd.to_datetime(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
-         filtered_df = filtered_df[filtered_df['survey_enddate'] <= end_dt]
-       except Exception as e:
-         print(f"⚠️ Invalid end_date: {end_date} — {e}")
-          
-     print(f"📅 Applying date filter from {start_date} to {end_date}")
-     print(f"📊 Rows before filtering: {len(df)}")
-     print(f"📉 Rows after filtering: {len(filtered_df)}")
+        try:
+            end_dt = pd.to_datetime(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+            filtered_df = filtered_df[filtered_df['survey_enddate'] <= end_dt]
+        except Exception as e:
+            print(f"⚠️ Invalid end_date: {end_date} — {e}")
 
-
+    print(f"📅 Applying date filter from {start_date} to {end_date}")
+    print(f"📊 Rows before filtering: {len(df)}")
+    print(f"📉 Rows after filtering: {len(filtered_df)}")
 
     if client_filter:
         filtered_df = filtered_df[filtered_df['clientname'].isin(client_filter)]
@@ -50,7 +46,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
     filtered_df['is_complete'] = filtered_df['respondentstatusid'] == 1
     filtered_df['is_other_status'] = ~filtered_df['respondentstatusid'].isin(ignored_status_ids)
 
-    # -------------------- Client Aggregation --------------------
+    # Client Aggregation
     client_summary = filtered_df.groupby('clientname').agg(
         Client_Total_Starts=('respondentstatusid', 'count'),
         Client_Client_Starts=('is_client_start', 'sum'),
@@ -70,7 +66,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
         )
     ]
 
-    # -------------------- Supplier Aggregation --------------------
+    # Supplier Aggregation
     supplier_summary = filtered_df[filtered_df['clientname'].isin(filtered_clients['clientname'])].groupby(['clientname', 'suppliername']).agg(
         Supplier_Total_Starts=('respondentstatusid', 'count'),
         Supplier_Client_Starts=('is_client_start', 'sum'),
@@ -89,7 +85,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
         )
     ].copy()
 
-    # -------------------- Dropout Aggregation (Top 3) --------------------
+    # Dropout Aggregation
     dropouts = filtered_df[filtered_df['respondentstatus'].notnull()]
     dropout_counts = dropouts.groupby(['clientname', 'suppliername', 'respondentstatus']).size().reset_index(name='Drop_Count')
 
@@ -100,12 +96,14 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
     )
 
     dropout_counts['Drop_Percent'] = (dropout_counts['Drop_Count'] / dropout_counts['Supplier_Total_Starts'] * 100).round(2)
+    dropout_counts = dropout_counts[~dropout_counts['respondentstatus'].isin([
+        'Client Terminate', 'Client No Survey', 'Complete', 'Duplicate User', 'Duplicate IP'
+    ])]
 
-    dropout_counts = dropout_counts[~dropout_counts['respondentstatus'].isin(['Client Terminate', 'Client No Survey', 'Complete', 'Duplicate User', 'Duplicate IP'])]
     dropout_counts = dropout_counts.sort_values(['clientname', 'suppliername', 'Drop_Count'], ascending=[True, True, False])
     top_dropouts = dropout_counts.groupby(['clientname', 'suppliername']).head(3)
 
-    # -------------------- Qualification Aggregation (Top 3) --------------------
+    # Qualification Aggregation
     demo_df = filtered_df[filtered_df['respondentstatus'] == 'DemoTerminate']
     qualification_counts = demo_df.groupby(['clientname', 'suppliername', 'qualificationname']).size().reset_index(name='Qualification_Count')
 
@@ -116,7 +114,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
     qualification_counts = qualification_counts.sort_values(['clientname', 'suppliername', 'Qualification_Count'], ascending=[True, True, False])
     top_qualifications = qualification_counts.groupby(['clientname', 'suppliername']).head(3)
 
-    # -------------------- Merge Dropouts --------------------
+    # Merge Dropouts
     final = supplier_filtered.merge(
         filtered_clients[['clientname', 'Client_Total_Starts', 'Client_Client_Starts', 'Client_Conversion']],
         on='clientname', how='left'
@@ -125,9 +123,10 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
         on=['clientname', 'suppliername'],
         how='left'
     )
+
     for col in ['respondentstatus', 'Drop_Count', 'Drop_Percent']:
-       if col not in final.columns:
-         final[col] = np.nan
+        if col not in final.columns:
+            final[col] = np.nan
 
     final.rename(columns={
         'clientname': 'Client',
@@ -151,7 +150,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
 
     final = final.sort_values(by=['Starts(client)', 'Starts(supplier)'], ascending=[False, False])
 
-    # -------------------- Export --------------------
+    # Export
     with pd.ExcelWriter(output_file, engine='xlsxwriter') as writer:
         final.to_excel(writer, index=False, sheet_name='Report')
         workbook = writer.book
@@ -164,7 +163,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
             worksheet.write(0, col_num, value, header_format)
 
         worksheet.write(0, len(final.columns), 'Qualification Name', header_format)
-        worksheet.write(0, len(final.columns)+1, 'Qualification Percentage', header_format)
+        worksheet.write(0, len(final.columns) + 1, 'Qualification Percentage', header_format)
         worksheet.set_column('A:O', 18)
 
         start_row = 1
@@ -174,14 +173,8 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
             for supplier, supplier_df in client_df.groupby('Supplier', sort=False):
                 other_rows = supplier_df[supplier_df['Respondent Status'] != 'DemoTerminate'].shape[0]
                 demo_row = supplier_df[supplier_df['Respondent Status'] == 'DemoTerminate']
-                if not demo_row.empty:
-                    quals = top_qualifications[
-                        (top_qualifications['clientname'] == client) & 
-                        (top_qualifications['suppliername'] == supplier)]
-                    qual_rows = max(len(quals), 1)
-                else:
-                    qual_rows = 0
-
+                quals = top_qualifications[(top_qualifications['clientname'] == client) & (top_qualifications['suppliername'] == supplier)]
+                qual_rows = max(len(quals), 1) if not demo_row.empty else 0
                 total_supplier_rows = other_rows + qual_rows
                 client_rows += total_supplier_rows
 

@@ -15,7 +15,7 @@ password = os.getenv("ES_PASSWORD")
 if not all([cloud_id, username, password]):
     raise ValueError("One or more Elasticsearch credentials are missing.")
 
-def fetch_last_months_data(es):
+def fetch_last_3_months_data(es):
     end_date = datetime.now()
     start_date = end_date - timedelta(days=30)
 
@@ -70,7 +70,7 @@ def save_live_data_to_parquet_chunks():
         max_retries=3,
         retry_on_timeout=True
     )
-    df = fetch_last_months_data(es)
+    df = fetch_last_3_months_data(es)
 
     if df.empty:
         print("No data to save.")

@@ -96,12 +96,22 @@ def load_cached_data():
         st.error("❌ Data not found. Please make sure the `data_chunks/` folder exists with .parquet files.")
         st.stop()
 
+    # Sort by part number robustly (even if file naming slightly varies)
+    def extract_part_number(filename):
+        try:
+            return int(filename.split("part")[-1].split(".")[0])
+        except (IndexError, ValueError):
+            return float('inf')  # Push unparseable files to the end
+
     chunk_files = sorted(
         [f for f in os.listdir(chunk_folder) if f.endswith(".parquet")],
-        key=lambda x: int(x.split("part")[1].split(".")[0])
+        key=extract_part_number
     )
+
     all_chunks = [pd.read_parquet(os.path.join(chunk_folder, f)) for f in chunk_files]
     df = pd.concat(all_chunks, ignore_index=True)
+
+    st.success(f"✅ Loaded {len(chunk_files)} data file(s) with {len(df):,} total records.")
     return df
 
 # Load the data

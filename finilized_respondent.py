@@ -29,11 +29,17 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
          print(f"⚠️ Invalid start_date: {start_date} — {e}")
 
     if end_date is not None:
-       try:
-         end_dt = pd.to_datetime(end_date)
-         filtered_df = filtered_df[filtered_df['survey_enddate'] <= end_dt]
-       except Exception as e:
-         print(f"⚠️ Invalid end_date: {end_date} — {e}")
+      try:
+        # Include full end date by setting it to 23:59:59 of that day
+        end_dt = pd.to_datetime(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+        filtered_df = filtered_df[filtered_df['survey_enddate'] <= end_dt]
+      except Exception as e:
+        print(f"⚠️ Invalid end_date: {end_date} — {e}")
+          
+     print(f"📅 Applying date filter from {start_date} to {end_date}")
+     print(f"📊 Rows before filtering: {len(df)}")
+     print(f"📉 Rows after filtering: {len(filtered_df)}")
+
 
 
     if client_filter:

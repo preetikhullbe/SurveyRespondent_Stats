@@ -96,22 +96,12 @@ def load_cached_data():
         st.error("❌ Data not found. Please make sure the `data_chunks/` folder exists with .parquet files.")
         st.stop()
 
-    # Sort by part number robustly (even if file naming slightly varies)
-    def extract_part_number(filename):
-        try:
-            return int(filename.split("part")[-1].split(".")[0])
-        except (IndexError, ValueError):
-            return float('inf')  # Push unparseable files to the end
-
     chunk_files = sorted(
         [f for f in os.listdir(chunk_folder) if f.endswith(".parquet")],
-        key=extract_part_number
+        key=lambda x: int(x.split("part")[1].split(".")[0])
     )
-
     all_chunks = [pd.read_parquet(os.path.join(chunk_folder, f)) for f in chunk_files]
     df = pd.concat(all_chunks, ignore_index=True)
-
-    st.success(f"✅ Loaded {len(chunk_files)} data file(s) with {len(df):,} total records.")
     return df
 
 # Load the data
@@ -172,14 +162,22 @@ with st.container():
                     process_data(df, tmp.name, start_date, end_date, client_filter)
                     tmp_file_path = tmp.name
 
-                    df_preview = pd.read_excel(tmp_file_path)
-                    if df_preview.empty:
-                        st.warning("⚠️ Report is empty, select any other data range.")
+                if not os.path.exists(tmp_file_path) or os.path.getsize(tmp_file_path) == 0:
+                    st.warning("⚠️ Report generation failed or resulted in an empty file.")
+                    report_generated = False
+                else:
+                    try:
+                        df_preview = pd.read_excel(tmp_file_path)
+                        if df_preview.empty:
+                            st.warning("⚠️ The report contains no data for the selected filters. Please adjust the date range or client.")
+                            report_generated = False
+                        else:
+                            st.success(f"✅ Report Generated Successfully! ({len(df_preview)} rows)")
+                            st.dataframe(df_preview, use_container_width=True, height=305)
+                            report_generated = True
+                    except Exception as e:
+                        st.error(f"❌ Failed to read the report: {e}")
                         report_generated = False
-                    else:
-                        st.success("✅ Report Generated Successfully!")
-                        st.dataframe(df_preview, use_container_width=True, height=305)
-                        report_generated = True
 
     if report_generated and tmp_file_path:
         with btn_col2:

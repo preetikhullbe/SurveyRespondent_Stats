@@ -5,6 +5,7 @@ from elasticsearch import Elasticsearch
 import pyarrow as pa
 import pyarrow.parquet as pq
 import io
+from elasticsearch.exceptions import ConnectionTimeout, TransportError
 
 ES_INDEX = "uni_session"
 cloud_id = os.getenv("ES_CLOUD_ID")
@@ -14,7 +15,7 @@ password = os.getenv("ES_PASSWORD")
 if not all([cloud_id, username, password]):
     raise ValueError("One or more Elasticsearch credentials are missing.")
 
-def fetch_last_3_months_data(es):
+def fetch_last_months_data(es):
     end_date = datetime.now()
     start_date = end_date - timedelta(days=30)
 
@@ -47,10 +48,14 @@ def fetch_last_3_months_data(es):
     all_hits.extend(hits)
 
     while hits:
+      try:
         response = es.scroll(scroll_id=scroll_id, scroll=scroll)
         scroll_id = response['_scroll_id']
         hits = response['hits']['hits']
         all_hits.extend(hits)
+      except (ConnectionTimeout, TransportError) as e:
+        print(f"⚠️ Scroll failed: {e}. Stopping early.")
+        break
 
     es.clear_scroll(scroll_id=scroll_id)
 
@@ -60,7 +65,10 @@ def fetch_last_3_months_data(es):
 def save_live_data_to_parquet_chunks():
     es = Elasticsearch(
         cloud_id=cloud_id,
-        basic_auth=(username, password)
+        basic_auth=(username, password),
+        request_timeout=60,     # <-- Increase timeout from default (~10s)
+        max_retries=3,
+        retry_on_timeout=True
     )
     df = fetch_last_3_months_data(es)
 

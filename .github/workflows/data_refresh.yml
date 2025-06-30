@@ -2,7 +2,7 @@ name: Daily Data Refresh
 
 on:
   schedule:
-    - cron: '30 19 * * *'  # ⏰ 1:00 AM IST (which is 7:30 PM UTC)
+    - cron: '30 19 * * *'  # ⏰ 1:00 AM IST (7:30 PM UTC)
   workflow_dispatch:
 
 jobs:
@@ -20,7 +20,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pandas pyodbc fastparquet elasticsearch==8.7.0
+          pip install pandas pyarrow fastparquet elasticsearch==8.7.0
 
       - name: Run Data Loader
         env:
@@ -33,10 +33,9 @@ jobs:
         env:
           TOKEN: ${{ secrets.GH_PAT }}
         run: |
-         git config user.name "github-actions"
-         git config user.email "actions@github.com"
-         git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}
-         git add data_chunks/clientandsupplier1_part*.parquet
-         git commit -m "🔄 Auto-update parquet chunks [$(date)]" || echo "No changes to commit"
-         git push origin HEAD:${{ github.ref }}
-
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}
+          git add data_chunks/*.parquet
+          git commit -m "🔄 Auto-update parquet chunks [$(date)]" || echo "No changes to commit"
+          git push origin HEAD:${{ github.ref }}

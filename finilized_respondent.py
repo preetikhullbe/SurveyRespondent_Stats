@@ -58,7 +58,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
         (client_summary['Client_Total_Starts'] > 2000) &
         (
             (client_summary['Client_Client_Starts'] < 0.5 * client_summary['Client_Total_Starts']) |
-            (client_summary['other_status_rate'] >= 35)
+            (client_summary['other_status_rate'] >= 40)
         )
     ]
 
@@ -80,7 +80,7 @@ def process_data(df, output_file, start_date=None, end_date=None, client_filter=
         (supplier_summary['Supplier_Total_Starts'] > 500) &
         (
             (supplier_summary['Supplier_Conversion'] < 3) |
-            (supplier_summary['supplier_other_status_rate'] >= 50)
+            (supplier_summary['supplier_other_status_rate'] >= 60)
         )
     ].copy()
 

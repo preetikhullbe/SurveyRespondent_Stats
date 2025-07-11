@@ -31,7 +31,7 @@ CHUNK_DIR = "data_chunks"
 
 def fetch_last_3_months_data(es):
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=25)
+    start_date = end_date - timedelta(days=20)
 
     query = {
         "query": {

@@ -1,49 +1,49 @@
-name: Daily Data Refresh
+#name: Daily Data Refresh
 
-on:
-  schedule:
-    - cron: '30 19 * * *'  # 1:00 AM IST
-  workflow_dispatch:
+#on:
+  #schedule:
+    #- cron: '30 19 * * *'  # 1:00 AM IST
+  #workflow_dispatch:
 
-jobs:
-  refresh-data:
-    runs-on: ubuntu-latest
+#jobs:
+  #refresh-data:
+    #runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+    #steps:
+      #- name: Checkout repo
+        #uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+      #- name: Set up Python
+        #uses: actions/setup-python@v4
+        #with:
+          #python-version: '3.10'
 
-      - name: Install dependencies
-        run: |
-          pip install pandas pyarrow fastparquet elasticsearch==8.7.0
+      #- name: Install dependencies
+       # run: |
+        #  pip install pandas pyarrow fastparquet elasticsearch==8.7.0
 
-      - name: Run Data Loader
-        env:
-          ES_CLOUD_ID: ${{ secrets.ES_CLOUD_ID }}
-          ES_USERNAME: ${{ secrets.ES_USERNAME }}
-          ES_PASSWORD: ${{ secrets.ES_PASSWORD }}
-        run: python data_loader.py
+      #- name: Run Data Loader
+       # env:
+        #  ES_CLOUD_ID: ${{ secrets.ES_CLOUD_ID }}
+         # ES_USERNAME: ${{ secrets.ES_USERNAME }}
+          #ES_PASSWORD: ${{ secrets.ES_PASSWORD }}
+        #run: python data_loader.py
 
-      - name: Commit and push updated parquet
-        env:
-          TOKEN: ${{ secrets.GH_PAT }}
-        run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}
+      #- name: Commit and push updated parquet
+       # env:
+        #  TOKEN: ${{ secrets.GH_PAT }}
+        #run: |
+         # git config user.name "github-actions"
+          #git config user.email "actions@github.com"
+          #git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}
 
-          git add data_chunks/clientandsupplier1_part*.parquet
+          #git add data_chunks/clientandsupplier1_part*.parquet
 
           # Check for deleted files before trying to remove them
-          deleted=$(git ls-files --deleted)
-          if [ -n "$deleted" ]; then
-            echo "$deleted" | xargs git rm
-          fi
+          #deleted=$(git ls-files --deleted)
+          #if [ -n "$deleted" ]; then
+           # echo "$deleted" | xargs git rm
+          #fi
 
-          git commit -m "🔄 Auto-update parquet chunks [$(date)]" || echo "No changes to commit"
-          git push origin HEAD:${{ github.ref }}
+          #git commit -m "🔄 Auto-update parquet chunks [$(date)]" || echo "No changes to commit"
+          #git push origin HEAD:${{ github.ref }}'''
